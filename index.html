@@ -99,6 +99,7 @@ svg text{fill:var(--muted);font-family:var(--font-ui)}
 .card-cal .hint{max-width:46ch}
 .fit{font-size:13.5px;color:var(--muted)}
 .fit.bad{color:var(--warn)}
+.stages li.skip{color:var(--muted)}
 .start{font-size:17px;padding:14px 24px 14px 16px}
 #field{position:fixed;inset:0;width:100%;height:100%;z-index:50;touch-action:none;background:#cbcbcb}
 .stop{position:fixed;top:8px;z-index:60;min-width:84px;padding:6px 12px;border:0;border-radius:999px;background:rgba(0,0,0,.18);color:#1b1b1b;font-size:13px}
@@ -136,6 +137,13 @@ svg text{fill:var(--muted);font-family:var(--font-ui)}
           <label><input type="radio" name="eye" id="eye-os" value="OS"><span>왼눈 연습<small>오른눈을 가립니다</small></span></label>
         </div>
       </fieldset>
+      <fieldset id="mode-set">
+        <legend>연습 방식</legend>
+        <div class="seg">
+          <label><input type="radio" name="mode" id="mode-center" value="center" checked><span>노란 점 가운데<small>2·3단계 · 맹점 찾기 없음</small></span></label>
+          <label><input type="radio" name="mode" id="mode-bs" value="bs"><span>맹점 포함<small>3단계 · 노란 점이 화면 한쪽(코쪽)으로</small></span></label>
+        </div>
+      </fieldset>
       <div class="card-cal">
         <p class="lbl">화면 크기 맞추기 (처음 한 번)</p>
         <div class="card" id="card">신용카드·체크카드·신분증을 여기에 세로로 대 보세요</div>
@@ -148,11 +156,11 @@ svg text{fill:var(--muted);font-family:var(--font-ui)}
     <div class="modes">
       <h2>연습 순서 (한 눈씩)</h2>
       <ol class="stages">
-        <li><b>1단계 맹점 찾기</b> <span>20초</span><br>빛이 보이면 화면을 톡 누릅니다. 맹점 때문에 안 보이는 빛도 있습니다.</li>
+        <li id="st-bs"><b>1단계 맹점 찾기</b> <span id="d-bs">20초</span><br>빛이 보이면 화면을 톡 누릅니다. 맹점 때문에 안 보이는 빛도 있습니다.</li>
         <li><b>2단계 시선 고정 연습</b> <span>20초</span><br>눈은 가운데 노란 점에 둔 채, 빛이 반짝 보이면 누릅니다. 빛이 나온 쪽을 쳐다보지 않고, 잔상에는 누르지 않습니다.</li>
         <li><b>3단계 시야검사 연습</b> <span>30초</span><br>실제 검사처럼 빛이 반짝 보이면 누릅니다. 잔상에는 누르지 않습니다. 삐비빅 소리가 나면 다시 가운데를 봅니다.</li>
       </ol>
-      <p class="hint">휴대폰 화면이 작아서 가운데 점이 화면 한쪽 끝 가까이에 있고, 빛은 주로 귀쪽(맹점 쪽)에서 나옵니다. 단계마다 안내가 먼저 나오니 다 읽고 화면을 톡 누르면 시작합니다.</p>
+      <p class="hint">휴대폰은 화면이 작아 노란 점을 가운데 두면 맹점(귀쪽 약 15°)이 화면 밖으로 나갑니다. 그래서 연습 방식을 고릅니다. 노란 점 가운데는 2·3단계만 하고, 맹점 포함은 맹점이 화면에 들어오도록 노란 점이 코쪽으로 가며 맹점 찾기와 눈 움직임 확인까지 합니다. 단계마다 안내가 먼저 나오니 다 읽고 화면을 톡 누르면 시작합니다.</p>
       <div class="actions">
         <button class="start" id="start" type="button"><span class="mark sm" aria-hidden="true"></span>연습 시작</button>
         <button class="ghost" id="beep" type="button">경고음 미리 듣기</button>
@@ -335,20 +343,37 @@ const eyeName = e => (e === 'OD' ? '오른눈' : '왼눈');
 // 1단계 맹점 찾기 자리: 귀쪽으로 넓게 훑는 줄과 잘 보이는 확인 자리
 const bsCoarse = eye => BSMAP.coarseX.map(x => ({ x: x * side(eye), y: BSMAP.y }));
 const bsControls = eye => BSMAP.controls.map(([x, y]) => ({ x: x * side(eye), y }));
-// 가운데 점을 코쪽 끝 가까이 두어 귀쪽(맹점 쪽)을 넓게 쓴다. 귀쪽 11.5 cm(약 21°)면 맹점 찾기가 들어간다.
+// 노란 점은 PC처럼 정가운데. 가로 화면의 절반이 맹점 바깥 끝(약 19.5°)까지 닿으면(태블릿 등) 그대로 3단계를 한다.
+// 닿지 않는 휴대폰은 고른다: 노란 점 가운데(2·3단계) 또는 맹점 포함(노란 점을 코쪽으로 옮겨 3단계).
+const BS_NEED_DEG = 19.5;
+const halfDeg = side => deg(Math.atan(side / screenCal().ppc / 2 / D));
+const bsFits = () => halfDeg(Math.max(screen.width, screen.height)) >= BS_NEED_DEG;
+const modeOf = () => document.querySelector('input[name="mode"]:checked').value;
+const offsetFix = () => !bsFits() && modeOf() === 'bs'; // 노란 점을 코쪽으로 옮기는지
+const stagesFor = () => (bsFits() || modeOf() === 'bs' ? ORDER : ORDER.filter(m => m !== 'bs'));
+// 맹점 포함일 때 노란 점을 코쪽 끝에서 띄우는 거리(cm). 귀쪽 11.5 cm(약 21°)면 맹점 찾기가 들어간다.
 const nasalCm = wCm => Math.max(1.2, Math.min(wCm / 2, wCm - 11.5));
 function renderSetup() {
-  const w = cardW(), wCm = Math.max(screen.width, screen.height) / screenCal().ppc;
-  const tDeg = deg(Math.atan((wCm - nasalCm(wCm)) / D));
+  const w = cardW(), order = stagesFor(), long = Math.max(screen.width, screen.height), wCm = long / screenCal().ppc;
   document.documentElement.style.setProperty('--cw', w + 'px');
   $('cardw').value = w;
-  $('fit').textContent = `가로로 두면 가운데 점에서 귀쪽으로 약 ${Math.floor(tDeg)}°까지 빛이 나옵니다.` +
-    (tDeg < 19 ? ' 화면이 작아 맹점(귀쪽 약 15°)이 화면 끝에 걸릴 수 있습니다.' : '');
-  $('fit').classList.toggle('bad', tDeg < 19);
+  $('mode-set').hidden = bsFits();
+  if (offsetFix()) {
+    const tDeg = deg(Math.atan((wCm - nasalCm(wCm)) / D));
+    $('fit').textContent = `가로로 두면 노란 점이 화면 코쪽으로 가고, 귀쪽으로 약 ${Math.floor(tDeg)}°까지 빛이 나옵니다.` +
+      (tDeg < 19 ? ' 화면이 작아 맹점(귀쪽 약 15°)이 화면 끝에 걸릴 수 있습니다.' : '');
+  } else {
+    $('fit').textContent = `가로로 두면 노란 점에서 좌우 약 ${Math.floor(halfDeg(long))}°, 위아래 약 ${Math.floor(halfDeg(Math.min(screen.width, screen.height)))}°까지 빛이 나옵니다.` +
+      (order[0] === 'bs' ? '' : ' 맹점은 화면 밖이라 1단계 맹점 찾기는 건너뜁니다.');
+  }
+  $('st-bs').classList.toggle('skip', order[0] !== 'bs');
+  $('d-bs').textContent = order[0] === 'bs' ? `${DUR.bs}초` : '이 방식에서는 건너뜀';
+  $('start').lastChild.textContent = `연습 시작 · ${order.length}단계 ${order.reduce((s, k) => s + DUR[k], 0)}초`;
   $('cover-eye').textContent = eyeOf() === 'OD' ? '왼눈' : '오른눈';
 }
 $('cardw').addEventListener('input', () => { store.set(CARD_KEY, $('cardw').value); renderSetup(); });
 document.querySelectorAll('input[name="eye"]').forEach(r => r.addEventListener('change', () => { store.set('hfa-eye', eyeOf()); renderSetup(); }));
+document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', () => { store.set('hfa-m-mode', modeOf()); renderSetup(); }));
 $('beep').addEventListener('click', playAlarm);
 $('start').addEventListener('click', () => startFlow(eyeOf()));
 // 그만하기: 실수로 끝나지 않게 두 번 눌러야 멈춤. 첫 누름은 빛에 대한 반응으로도 센다
@@ -371,12 +396,13 @@ const coverWord = () => (flow.eye === 'OD' ? '왼눈' : '오른눈');
 async function startFlow(eye) {
   audio(); // 클릭 순간에 소리 잠금 해제
   document.querySelector(`input[name="eye"][value="${eye}"]`).checked = true;
-  flow = { eye, dur: { ...DUR }, bs: null, res: {}, fs: false, wake: null };
+  const order = stagesFor(); // 노란 점 가운데이고 맹점이 화면 밖이면 맹점 찾기와 맹점 확인 빛 없이
+  flow = { eye, order, offset: offsetFix(), dur: { ...DUR }, bs: order[0] === 'bs' ? null : { x: CONFIG.flCatch.x * side(eye), y: CONFIG.flCatch.y, found: false }, res: {}, fs: false, wake: null };
   $('app').hidden = true;
   cv.hidden = false;
   $('stop').hidden = false;
-  $('stop').style.cssText = eye === 'OD' ? 'left:8px' : 'right:8px'; // 코쪽 위 구석 (빛은 귀쪽에서 나옴)
-  startStage('bs');
+  $('stop').style.cssText = eye === 'OD' ? 'left:8px' : 'right:8px'; // 코쪽 위 구석
+  startStage(order[0]);
   requestAnimationFrame(tick);
   try { await document.documentElement.requestFullscreen?.(); await screen.orientation?.lock?.('landscape'); } catch {}
   try { const w = await navigator.wakeLock?.request('screen'); if (flow) flow.wake = w; else w?.release(); } catch {} // 연습 중 화면 꺼짐 방지
@@ -400,7 +426,7 @@ function endStage() {
     startStage('bs');
     return;
   }
-  const next = ORDER[ORDER.indexOf(run.mode) + 1];
+  const next = flow.order[flow.order.indexOf(run.mode) + 1];
   if (next) startStage(next);
   else finishFlow(false);
 }
@@ -425,8 +451,8 @@ function layout() {
   const dpr = window.devicePixelRatio || 1;
   cv.width = Math.round(innerWidth * dpr);
   cv.height = Math.round(innerHeight * dpr);
-  const n = stimPx(dpr), ppc = screenCal().ppc * dpr, nas = nasalCm(cv.width / ppc) * ppc;
-  const b = $('stop').getBoundingClientRect();
+  const n = stimPx(dpr), ppc = screenCal().ppc * dpr, b = $('stop').getBoundingClientRect();
+  const nas = flow.offset ? nasalCm(cv.width / ppc) * ppc : cv.width / 2; // 맹점 포함이면 노란 점을 코쪽으로
   run.L = { W: cv.width, H: cv.height, cx: Math.round(side(run.eye) > 0 ? nas : cv.width - nas), cy: Math.round(cv.height / 2), ppc, n, mask: stimMask(n),
     stop: [b.left, b.top, b.right, b.bottom].map(v => v * dpr) };
 }
@@ -886,12 +912,12 @@ function scoreCard(mode, r) {
   </article>`;
 }
 function showResults(f, aborted) {
-  const done = ORDER.filter(m => f.res[m]), other = f.eye === 'OD' ? 'OS' : 'OD';
+  const done = f.order.filter(m => f.res[m]), other = f.eye === 'OD' ? 'OS' : 'OD';
   $('result').innerHTML = `
     <div><p class="eyebrow">연습 결과 · ${eyeName(f.eye)}</p>
-      <h2>${aborted ? `중간에 멈췄습니다 (${done.length}/3단계)` : '3단계 연습을 마쳤습니다'}</h2>
-      <p class="sub">결과는 이 화면에만 보이고 저장하지 않습니다.</p></div>
-    <div class="compare">${ORDER.map(m => scoreCard(m, f.res[m])).join('')}</div>
+      <h2>${aborted ? `중간에 멈췄습니다 (${done.length}/${f.order.length}단계)` : `${f.order.length}단계 연습을 마쳤습니다`}</h2>
+      <p class="sub">결과는 이 화면에만 보이고 저장하지 않습니다.${f.order[0] === 'bs' ? '' : ' 노란 점 가운데 방식이라 맹점 찾기와 눈 움직임 확인(맹점 빛)은 하지 않았습니다.'}</p></div>
+    <div class="compare">${f.order.map(m => scoreCard(m, f.res[m])).join('')}</div>
     <div class="actions">${startBtn(other, `${eyeName(other)}으로 연습하기`, true)}${startBtn(f.eye, `${eyeName(f.eye)} 다시 하기`)}</div>`;
 }
 const startBtn = (eye, label, primary) =>
@@ -904,7 +930,7 @@ $('result').addEventListener('click', e => {
 // ── 시작 ─────────────────────────────────────────────────
 (function init() {
   if (store.get('hfa-eye') === 'OS') $('eye-os').checked = true;
-  $('start').lastChild.textContent = `연습 시작 · 3단계 ${ORDER.reduce((s, k) => s + DUR[k], 0)}초`;
+  if (store.get('hfa-m-mode') === 'bs') $('mode-bs').checked = true;
   $('cardw').max = Math.min(460, innerWidth - 4); // 카드는 화면보다 넓을 수 없음
   renderSetup();
 })();
