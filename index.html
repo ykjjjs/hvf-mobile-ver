@@ -141,7 +141,7 @@ svg text{fill:var(--muted);font-family:var(--font-ui)}
         <legend>연습 방식</legend>
         <div class="seg">
           <label><input type="radio" name="mode" id="mode-center" value="center" checked><span>노란 점 가운데<small>2·3단계 · 맹점 찾기 없음</small></span></label>
-          <label><input type="radio" name="mode" id="mode-bs" value="bs"><span>맹점 포함<small>3단계 · 노란 점이 화면 한쪽(코쪽)으로</small></span></label>
+          <label><input type="radio" name="mode" id="mode-bs" value="bs"><span>맹점 포함<small>3단계 · 1단계만 노란 점이 한쪽(코쪽)으로</small></span></label>
         </div>
       </fieldset>
       <div class="card-cal">
@@ -160,7 +160,7 @@ svg text{fill:var(--muted);font-family:var(--font-ui)}
         <li><b>2단계 시선 고정 연습</b> <span>20초</span><br>눈은 가운데 노란 점에 둔 채, 빛이 반짝 보이면 누릅니다. 빛이 나온 쪽을 쳐다보지 않고, 잔상에는 누르지 않습니다.</li>
         <li><b>3단계 시야검사 연습</b> <span>30초</span><br>실제 검사처럼 빛이 반짝 보이면 누릅니다. 잔상에는 누르지 않습니다. 삐비빅 소리가 나면 다시 가운데를 봅니다.</li>
       </ol>
-      <p class="hint">휴대폰은 화면이 작아 노란 점을 가운데 두면 맹점(귀쪽 약 15°)이 화면 밖으로 나갑니다. 그래서 연습 방식을 고릅니다. 노란 점 가운데는 2·3단계만 하고, 맹점 포함은 맹점이 화면에 들어오도록 노란 점이 코쪽으로 가며 맹점 찾기와 눈 움직임 확인까지 합니다. 단계마다 안내가 먼저 나오니 다 읽고 화면을 톡 누르면 시작합니다.</p>
+      <p class="hint">휴대폰은 화면이 작아 노란 점을 가운데 두면 맹점(귀쪽 약 15°)이 화면 밖으로 나갑니다. 그래서 연습 방식을 고릅니다. 노란 점 가운데는 2·3단계만 하고, 맹점 포함은 1단계 맹점 찾기 동안만 맹점이 화면에 들어오도록 노란 점이 코쪽으로 가고, 2·3단계는 가운데로 돌아옵니다. 이때 맹점은 화면 밖이라 2·3단계의 눈 움직임 확인(맹점 빛)은 하지 않습니다. 단계마다 안내가 먼저 나오니 다 읽고 화면을 톡 누르면 시작합니다.</p>
       <div class="actions">
         <button class="start" id="start" type="button"><span class="mark sm" aria-hidden="true"></span>연습 시작</button>
         <button class="ghost" id="beep" type="button">경고음 미리 듣기</button>
@@ -360,7 +360,7 @@ function renderSetup() {
   $('mode-set').hidden = bsFits();
   if (offsetFix()) {
     const tDeg = deg(Math.atan((wCm - nasalCm(wCm)) / D));
-    $('fit').textContent = `가로로 두면 노란 점이 화면 코쪽으로 가고, 귀쪽으로 약 ${Math.floor(tDeg)}°까지 빛이 나옵니다.` +
+    $('fit').textContent = `1단계에서는 노란 점이 화면 코쪽으로 가고 귀쪽으로 약 ${Math.floor(tDeg)}°까지 빛이 나옵니다. 2·3단계는 노란 점이 가운데로 돌아옵니다.` +
       (tDeg < 19 ? ' 화면이 작아 맹점(귀쪽 약 15°)이 화면 끝에 걸릴 수 있습니다.' : '');
   } else {
     $('fit').textContent = `가로로 두면 노란 점에서 좌우 약 ${Math.floor(halfDeg(long))}°, 위아래 약 ${Math.floor(halfDeg(Math.min(screen.width, screen.height)))}°까지 빛이 나옵니다.` +
@@ -452,7 +452,7 @@ function layout() {
   cv.width = Math.round(innerWidth * dpr);
   cv.height = Math.round(innerHeight * dpr);
   const n = stimPx(dpr), ppc = screenCal().ppc * dpr, b = $('stop').getBoundingClientRect();
-  const nas = flow.offset ? nasalCm(cv.width / ppc) * ppc : cv.width / 2; // 맹점 포함이면 노란 점을 코쪽으로
+  const nas = flow.offset && run.mode === 'bs' ? nasalCm(cv.width / ppc) * ppc : cv.width / 2; // 맹점 포함이면 1단계만 노란 점을 코쪽으로
   run.L = { W: cv.width, H: cv.height, cx: Math.round(side(run.eye) > 0 ? nas : cv.width - nas), cy: Math.round(cv.height / 2), ppc, n, mask: stimMask(n),
     stop: [b.left, b.top, b.right, b.bottom].map(v => v * dpr) };
 }
@@ -565,13 +565,15 @@ function drawIntro(now) {
   });
   ctx.textBaseline = 'alphabetic';
 }
+// 안내에서 노란 점을 실제 자리대로 부름 (맹점 포함 1단계는 화면 한쪽)
+const dotName = () => (Math.abs(run.L.cx - run.L.W / 2) > 2 ? `${run.L.cx < run.L.W / 2 ? '왼쪽' : '오른쪽'} 노란 점` : '가운데 노란 점');
 const INTRO = {
   bs: () => flow.bsRetry
     ? ['맹점을 찾지 못해 1단계를 한 번 더 합니다', `${coverWord()}을 꼭 가렸는지 확인하세요. 두 눈으로 보면 맹점이 없습니다`,
-      '눈과 화면 가운데 사이를 30 cm로 맞추세요 (A4 용지 긴 쪽 길이)', '가운데 노란 점만 보고, 빛 쪽으로 눈을 돌리지 마세요', '이해했으면 화면을 톡 눌러 시작하세요']
-    : [`1단계 · 맹점 찾기 (${flow.dur.bs}초)`, `${coverWord()}을 가리고 가운데 노란 점만 보세요`, '주변에서 빛이 반짝 보이면 바로 화면을 톡 누르세요',
+      '눈과 화면 가운데 사이를 30 cm로 맞추세요 (A4 용지 긴 쪽 길이)', `${dotName()}만 보고, 빛 쪽으로 눈을 돌리지 마세요`, '이해했으면 화면을 톡 눌러 시작하세요']
+    : [`1단계 · 맹점 찾기 (${flow.dur.bs}초)`, `${coverWord()}을 가리고 ${dotName()}만 보세요`, '주변에서 빛이 반짝 보이면 바로 화면을 톡 누르세요',
       '안 보이는 빛도 있습니다. 누구나 있는 맹점 때문이니 괜찮습니다', '이해했으면 화면을 톡 눌러 시작하세요'],
-  fix: () => [`2단계 · 시선 고정 연습 (${flow.dur.fix}초)`, '가운데 노란 점에서 눈을 떼지 마세요', '주변에서 빛이 반짝 보이면 눈은 그대로 두고 화면만 톡 누르세요',
+  fix: () => [`2단계 · 시선 고정 연습 (${flow.dur.fix}초)`, ...(flow.offset ? ['노란 점이 화면 가운데로 옮겨졌습니다'] : []), '가운데 노란 점에서 눈을 떼지 마세요', '주변에서 빛이 반짝 보이면 눈은 그대로 두고 화면만 톡 누르세요',
     '빛이 나온 쪽을 쳐다보지 마세요. 잔상이 남아도 누르지 마세요', '이해했으면 화면을 톡 눌러 시작하세요'],
   hfa: () => [`3단계 · 시야검사 연습 (${flow.dur.hfa}초)`, '주변에서 빛이 반짝 보이면 바로 누르세요', '잔상이 남아 보여도 새로 반짝이는 빛에만 누르세요',
     '삐비빅 소리가 나면 다시 가운데 노란 점을 보세요', '이해했으면 화면을 톡 눌러 시작하세요'],
@@ -594,7 +596,7 @@ function draw(now) {
   ctx.beginPath(); ctx.arc(cx, cy, degPx(CONFIG.fixDiamDeg / 2), 0, 2 * Math.PI);
   ctx.fillStyle = '#f2c400'; ctx.fill();
   if (run.phase === 'intro') drawIntro(now);
-  else if (run.phase === 'lead') drawText([`${Math.max(1, Math.ceil((CONFIG.leadInMs - (now - run.t0)) / 1000))}초 뒤 시작합니다`, '가운데 노란 점을 보세요'], 4.5);
+  else if (run.phase === 'lead') drawText([`${Math.max(1, Math.ceil((CONFIG.leadInMs - (now - run.t0)) / 1000))}초 뒤 시작합니다`, `${dotName()}을 보세요`], 4.5);
   else if (now < run.msgUntil) drawText(run.msgKind === 'real'
     ? ['삐비빅 · 눈이 움직인 것 같습니다', '다시 가운데 노란 점을 보세요']
     : ['삐비빅 · 연습용 경고음입니다', '이 소리가 나면 다시 가운데 노란 점을 보세요'], 4.5);
@@ -788,7 +790,7 @@ function flashPos() {
 }
 function tickFix(now, t) {
   if (now < run.nextOnset || t >= run.testMs - CONFIG.responseMs[1]) return;
-  const k = run.trials.length, prev = run.trials.at(-1), probe = flow.bs.found && k >= 2 && k % FIXP.probeEvery === 2;
+  const k = run.trials.length, prev = run.trials.at(-1), probe = flow.bs.found && fits(flow.bs) && k >= 2 && k % FIXP.probeEvery === 2;
   if (probe && prev && now - prev.onset < CONFIG.cleanGapMs) { run.nextOnset = prev.onset + CONFIG.cleanGapMs; return; }
   const p = probe ? flow.bs : flashPos();
   if (!p) { run.nextOnset = now + 100; return; }
@@ -830,7 +832,7 @@ function initHfa(now) {
   });
 }
 // 맹점 확인(fl) 빛은 앞뒤로 빈 시간을 둔다.
-const cleanKind = k => (flow.bs.found && run.flSlots.length && k >= run.flSlots[0] ? 'fl' : null);
+const cleanKind = k => (flow.bs.found && fits(flow.bs) && run.flSlots.length && k >= run.flSlots[0] ? 'fl' : null);
 // 다음 자극: 맹점 확인(FL), 밝은 빛 놓침 확인(FN), 아니면 끝나지 않은 점 하나를 무작위로.
 function nextTrial(kind) {
   const k = run.trials.length;
@@ -916,7 +918,7 @@ function showResults(f, aborted) {
   $('result').innerHTML = `
     <div><p class="eyebrow">연습 결과 · ${eyeName(f.eye)}</p>
       <h2>${aborted ? `중간에 멈췄습니다 (${done.length}/${f.order.length}단계)` : `${f.order.length}단계 연습을 마쳤습니다`}</h2>
-      <p class="sub">결과는 이 화면에만 보이고 저장하지 않습니다.${f.order[0] === 'bs' ? '' : ' 노란 점 가운데 방식이라 맹점 찾기와 눈 움직임 확인(맹점 빛)은 하지 않았습니다.'}</p></div>
+      <p class="sub">결과는 이 화면에만 보이고 저장하지 않습니다.${f.order[0] !== 'bs' ? ' 노란 점 가운데 방식이라 맹점 찾기와 눈 움직임 확인(맹점 빛)은 하지 않았습니다.' : f.offset ? ' 2·3단계는 노란 점이 가운데여서 맹점이 화면 밖이라 눈 움직임 확인(맹점 빛)은 하지 않았습니다.' : ''}</p></div>
     <div class="compare">${f.order.map(m => scoreCard(m, f.res[m])).join('')}</div>
     <div class="actions">${startBtn(other, `${eyeName(other)}으로 연습하기`, true)}${startBtn(f.eye, `${eyeName(f.eye)} 다시 하기`)}</div>`;
 }
