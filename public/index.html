@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>험프리 시야검사 휴대폰 연습</title>
+<script>
+// 카카오톡 안에서 열면 휴대폰 기본 브라우저(크롬·사파리)로 다시 연다. 거기서 홈 화면에 설치할 수 있다.
+if (/KAKAOTALK/i.test(navigator.userAgent)) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+</script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#172024">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="시야검사 연습">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- 인터넷이 없는 PC에서도 바로 뜨도록 글꼴은 기다리지 않고 불러온다. 못 받으면 맑은 고딕 등 기본 글꼴 -->
@@ -97,6 +106,8 @@ svg text{fill:var(--muted);font-family:var(--font-ui)}
 .card{width:var(--cw,330px);aspect-ratio:53.98/85.6;border:2px solid var(--ink);border-radius:calc(var(--cw,330px)*0.059);display:grid;place-items:center;padding:12px;text-align:center;color:var(--muted);font-size:13px;background:var(--panel)}
 .card-cal input{width:min(100%,360px);accent-color:var(--ink)}
 .card-cal .hint{max-width:46ch}
+.acct{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--muted)}
+.acct a,.acct button{border:0;background:none;padding:0;color:var(--ink);text-decoration:underline;text-underline-offset:3px;font-size:13px;cursor:pointer}
 .fit{font-size:13.5px;color:var(--muted)}
 .fit.bad{color:var(--warn)}
 .stages li.skip{color:var(--muted)}
@@ -115,6 +126,7 @@ svg text{fill:var(--muted);font-family:var(--font-ui)}
       <p class="lede">실제 검사 전에 방법을 익히는 맛보기 연습입니다. 내 휴대폰으로 한 눈씩 맹점 찾기, 시선 고정 연습, 시야검사 연습 3단계를 짧게 해 봅니다. 결과는 진단에 쓰지 않고 저장하지도 않습니다.</p>
     </div>
   </header>
+  <p class="acct" id="acct" hidden><span id="acct-id"></span><a id="acct-admin" href="/login" hidden>승인 관리</a><button id="logout" type="button">로그아웃</button></p>
 
   <section id="result" class="result" hidden aria-live="polite"></section>
 
@@ -935,6 +947,17 @@ $('result').addEventListener('click', e => {
   if (store.get('hfa-m-mode') === 'bs') $('mode-bs').checked = true;
   $('cardw').max = Math.min(460, innerWidth - 4); // 카드는 화면보다 넓을 수 없음
   renderSetup();
+  // 웹앱(Cloudflare)으로 열면 로그인한 아이디와 로그아웃을 보여 준다. 파일로 열면 아무것도 하지 않는다.
+  if (location.protocol.startsWith('http')) {
+    fetch('/api/me').then(r => (r.ok ? r.json() : null)).then(me => {
+      if (!me) return;
+      $('acct-id').textContent = `${me.username}님`;
+      $('acct-admin').hidden = !me.admin;
+      $('acct').hidden = false;
+    }).catch(() => {});
+    $('logout').addEventListener('click', () => fetch('/api/logout', { method: 'POST' }).finally(() => location.replace('/login')));
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
 })();
 </script>
 </body>

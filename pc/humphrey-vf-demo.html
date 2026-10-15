@@ -1,0 +1,1429 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>험프리 시야검사 연습</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- 인터넷이 없는 PC에서도 바로 뜨도록 글꼴은 기다리지 않고 불러온다. 못 받으면 맑은 고딕 등 기본 글꼴 -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15.5' fill='%23C8C8C8'/%3E%3Ccircle cx='16' cy='16' r='10' fill='%23121617'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23F2C200'/%3E%3C/svg%3E">
+<style>
+/* Layout: 넓은 화면 2단(왼쪽 환자 안내·연습 시작 / 오른쪽 장비 환경 근거 상자), 좁은 화면 1단. 검사 화면(canvas)은 테마와 무관한 보정 회색. */
+:root{
+  --bg:#ECEFEE; --panel:#F7F9F8; --ink:#172024; --muted:#55626A; --line:#C8D0D0;
+  --fix:#F2C200; --fix-ink:#7A5B00; --hole:#121617; --warn:#A8321E; --good:#1F6B4F;
+  --font-ui:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#0F1315;--panel:#161C1F;--ink:#E3E9E9;--muted:#97A5AA;--line:#2A3438;--fix:#F5C518;--fix-ink:#F5C518;--hole:#050708;--warn:#FF8F7A;--good:#7FD1AE;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#0F1315;--panel:#161C1F;--ink:#E3E9E9;--muted:#97A5AA;--line:#2A3438;--fix:#F5C518;--fix-ink:#F5C518;--hole:#050708;--warn:#FF8F7A;--good:#7FD1AE;color-scheme:dark}
+
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.65 var(--font-ui);-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;line-height:1.3;text-wrap:balance}
+p{margin:0}
+a{color:inherit;text-underline-offset:2px}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--fix-ink);outline-offset:2px}
+
+.wrap{max-width:1180px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:32px 64px;display:grid;gap:32px}
+
+.mast{display:flex;gap:18px;align-items:center}
+.mark{flex:none;width:46px;height:46px;border-radius:50%;background:var(--hole);border:2px solid var(--line);display:grid;place-items:center}
+.mark::after{content:"";width:34%;height:34%;border-radius:50%;background:var(--fix)}
+.mark.sm{width:22px;height:22px;border-width:1px}
+.eyebrow{font:500 12px/1.4 var(--font-data);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(26px,3.4vw,34px);font-weight:700;letter-spacing:-.01em}
+.lede{color:var(--muted);max-width:64ch}
+
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:40px;align-items:start}
+@media (max-width:880px){.cols{grid-template-columns:minmax(0,1fr)}}
+section{display:grid;gap:16px;min-width:0}
+h2{font-size:19px;font-weight:700}
+h3.sm{font-size:15px;font-weight:700}
+.sub{color:var(--muted);font-size:14px}
+
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;max-width:62ch}
+.steps li::before{content:counter(s);font:500 13px/1.75 var(--font-data);color:var(--muted)}
+.steps b{font-weight:700}
+
+.setup{display:grid;gap:14px;padding-top:18px;border-top:1px solid var(--line)}
+fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}
+legend,.lbl{font-size:13px;font-weight:500;color:var(--muted);padding:0;margin-bottom:6px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg label{flex:1 1 180px;display:flex;gap:10px;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer}
+.seg label:has(input:checked){border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.seg input{accent-color:var(--ink);margin:0}
+.seg small{display:block;color:var(--muted);font-size:12.5px;line-height:1.4}
+.inch{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.inch input{width:96px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-family:var(--font-data);font-variant-numeric:tabular-nums}
+.fit{font-size:13.5px;color:var(--muted)}
+.fit.bad{color:var(--warn)}
+.ruler{display:grid;gap:4px;font-size:12.5px;color:var(--muted)}
+.ruler-bar{height:10px;max-width:100%;border:1px solid var(--ink);border-top:0;background:repeating-linear-gradient(90deg,var(--ink) 0 1px,transparent 1px 10%)}
+
+.modes{display:grid;gap:12px;padding-top:18px;border-top:1px solid var(--line)}
+.mode{display:grid;gap:10px;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.mode ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px;max-width:62ch}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.start{display:inline-flex;align-items:center;gap:12px;padding:12px 22px 12px 14px;border:0;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:700;font-size:16px;cursor:pointer;justify-self:start}
+.start:hover{opacity:.92}
+.ghost{padding:10px 16px;border:1px solid var(--line);border-radius:999px;background:transparent;cursor:pointer}
+.ghost:hover{border-color:var(--ink)}
+.hint{font-size:13px;color:var(--muted)}
+
+.cats{display:grid;gap:8px}
+.cat{border:1px solid var(--line);border-radius:10px;background:var(--panel);min-width:0}
+.cat[open]{border-color:var(--ink)}
+.cat summary{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;align-items:center;gap:2px 14px;padding:12px 16px;cursor:pointer;list-style:none}
+.cat summary::-webkit-details-marker{display:none}
+.cat summary:hover .k{text-decoration:underline;text-underline-offset:3px}
+.cat summary::after{content:"";grid-column:3;grid-row:1/span 2;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-2px) rotate(45deg);transition:transform .15s}
+.cat[open] summary::after{transform:translateY(2px) rotate(-135deg)}
+.cat .k{font-weight:700;font-size:15px}
+.cat .v{grid-column:2;grid-row:1/span 2;font:500 14px/1.35 var(--font-data);font-variant-numeric:tabular-nums;text-align:right}
+.cat .d{grid-column:1;font-size:12.5px;color:var(--muted);line-height:1.4}
+.cat .detail{border:0;border-top:1px solid var(--line);border-radius:0;background:transparent}
+
+.detail{display:grid;gap:14px;padding:20px;border:1px solid var(--line);border-radius:10px;background:var(--panel);min-width:0}
+.detail h3{font-size:17px}
+.detail p{max-width:66ch}
+.detail .aside{font-size:13.5px;color:var(--muted)}
+.detail figure{margin:0;display:grid;gap:8px;overflow-x:auto}
+.detail figcaption{font-size:12.5px;color:var(--muted)}
+.detail svg{width:100%;height:auto;max-height:300px;display:block}
+dl.kv{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:8px 20px}
+dl.kv div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:4px}
+dl.kv dt{color:var(--muted);font-size:13px}
+dl.kv dd{margin:0;font:500 13px/1.6 var(--font-data);font-variant-numeric:tabular-nums;text-align:right}
+.src{font:400 12px/1.6 var(--font-data);color:var(--muted)}
+
+.masks{display:flex;flex-wrap:wrap;gap:16px}
+.masks div{display:grid;gap:4px;justify-items:start}
+.aistrip{display:flex;flex-wrap:wrap;gap:8px}
+.aistrip div{display:grid;gap:4px;justify-items:center}
+.aistrip canvas{border-radius:4px}
+.aistrip span{font:400 11.5px/1.3 var(--font-data);color:var(--muted)}
+.masks span,.sw span{font:400 11.5px/1.3 var(--font-data);color:var(--muted)}
+.swatches{display:grid;grid-template-columns:repeat(8,minmax(48px,1fr));gap:6px;min-width:420px}
+.sw{display:grid;gap:4px;justify-items:center;text-align:center}
+.sw i{width:100%;aspect-ratio:1;max-width:100%;display:grid;place-items:center;border:2px solid transparent;border-radius:4px}
+.sw.on i{border-color:var(--ink)}
+.sw i::after{content:"";width:30%;height:30%;border-radius:50%;background:var(--dot)}
+
+svg text{fill:var(--muted);font-family:var(--font-ui)}
+.vf .axis{stroke:var(--line);stroke-width:.25}
+.vf .bs{fill:none;stroke:var(--muted);stroke-width:.25;stroke-dasharray:.8 .6}
+.vf .pt{fill:var(--muted)}
+.vf .pt-key{fill:var(--ink)}
+.vf .hole{fill:var(--hole);stroke:var(--line);stroke-width:.3}
+.vf .fixdot{fill:var(--fix)}
+.vf .fl{fill:none;stroke:var(--muted);stroke-width:.35}
+.vf .fl-hit{fill:var(--warn);stroke:var(--warn);stroke-width:.35}
+.vf .hid{fill:var(--muted)}
+.vf .dist{fill:var(--ink)}
+.vf .ring{fill:none;stroke:var(--ink);stroke-width:.3;stroke-dasharray:.6 .5}
+.vf .arrow{stroke:var(--ink);stroke-width:.3}
+.vf text{font-size:2.3px}
+.vf text.thr{fill:var(--ink);font-family:var(--font-data);font-size:2.7px;font-weight:500}
+.vf text.thr.na{fill:var(--muted)}
+.dg .ink{stroke:var(--ink);fill:none}
+.dg .soft{stroke:var(--muted);fill:none}
+.dg .ray{stroke:var(--fix-ink);fill:none}
+.dg .bar{fill:var(--ink)}
+.dg .dot-open{fill:var(--panel);stroke:var(--ink);stroke-width:2}
+.dg .band{fill:var(--fix);opacity:.35}
+.dg .warnbar{fill:var(--warn)}
+.dg .mutedbar{fill:var(--muted)}
+.dg text{font-size:13px}
+
+.result{display:grid;gap:18px;padding:22px;border:1px solid var(--ink);border-radius:10px;background:var(--panel)}
+.reset{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px 24px;border:0;border-radius:12px;background:var(--fix);color:var(--hole);font-weight:700;font-size:clamp(17px,2.2vw,21px);cursor:pointer}
+.reset:hover{filter:brightness(1.05)}
+.reset small{font-weight:500;font-size:14px}
+.res-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px;align-items:start}
+@media (max-width:760px){.res-body{grid-template-columns:minmax(0,1fr)}}
+.stats{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stats div{display:grid;gap:0;padding:10px 12px;border:1px solid var(--line);border-radius:8px}
+.stats dt{font-size:12.5px;color:var(--muted)}
+.stats dd{margin:0;font:500 22px/1.3 var(--font-data);font-variant-numeric:tabular-nums}
+.result figure{margin:0;display:grid;gap:6px;min-width:0}
+.result svg{width:100%;height:auto;max-height:320px}
+.result figure.gz svg{max-width:760px}
+.result figcaption{font-size:12.5px;color:var(--muted)}
+.notes{margin:0;padding-left:18px;display:grid;gap:6px;max-width:72ch}
+
+.stages{margin:0;padding-left:20px;display:grid;gap:6px;font-size:14px;max-width:62ch}
+.stages b{font-weight:700}
+.stages span{font:500 13px var(--font-data);color:var(--muted)}
+.settings{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:12px 16px}
+.settings summary{cursor:pointer;font-weight:500}
+.settings[open] summary{margin-bottom:10px}
+.durs{display:grid;gap:10px}
+.dur{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,150px) 48px;gap:10px;align-items:center;font-size:14px}
+.dur small{display:block;color:var(--muted);font-size:12px}
+.dur input{width:100%;accent-color:var(--ink)}
+.dur output{font:500 13px var(--font-data);text-align:right;font-variant-numeric:tabular-nums}
+.hist{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin-top:10px}
+.link{border:0;background:none;padding:0;color:var(--warn);text-decoration:underline;cursor:pointer;font-size:13px}
+.compare{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.compare{grid-template-columns:minmax(0,1fr)}}
+.score{display:grid;gap:6px;align-content:start;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);min-width:0}
+.score .big{font:500 34px/1.1 var(--font-data);font-variant-numeric:tabular-nums}
+.score .note{font-size:13px;color:var(--muted)}
+.score svg{width:100%;height:auto;max-height:96px}
+.gauge .track{fill:var(--line)}
+.gauge .me{fill:var(--ink)}
+.gauge .avg{stroke:var(--fix-ink)}
+.gauge text{font-size:12px}
+.chip{display:inline-block;padding:2px 10px;border-radius:999px;border:1.5px solid currentColor;font-size:13px;font-weight:700}
+.chip.good{color:var(--good)}
+.chip.warn{color:var(--warn)}
+.chip.mid{color:var(--muted)}
+details.more{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:14px}
+details.more summary{cursor:pointer;font-weight:500}
+details.more[open]{gap:14px}
+#field{position:fixed;inset:0;width:100vw;height:100vh;z-index:50;cursor:none;touch-action:none;background:#cbcbcb}
+</style>
+</head>
+<body>
+<main id="app" class="wrap">
+  <header class="mast">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <p class="eyebrow">Humphrey Field Analyzer · 24-2 · 연습용</p>
+      <h1>험프리 시야검사 연습</h1>
+      <p class="lede">실제 검사 전에 방법을 익히는 맛보기 연습입니다. 한 눈씩 맹점 찾기, 시선 고정 연습, 시야검사 연습 3단계를 짧게 해 봅니다. 결과는 진단에 쓰지 않습니다.</p>
+    </div>
+  </header>
+
+  <section id="result" class="result" hidden aria-live="polite"></section>
+
+  <div class="cols">
+    <section aria-labelledby="prep-h">
+      <h2 id="prep-h">공통 준비</h2>
+      <ol class="steps">
+        <li><span>모니터 정면에 앉으세요. 턱을 당기고 머리를 움직이지 마세요. 실제 장비에는 턱받침과 이마받침이 있습니다.</span></li>
+        <li><span>눈과 화면 가운데 사이를 <b>30 cm</b>로 맞추세요. A4 용지 긴 쪽(29.7 cm)과 거의 같습니다. 실제 장비도 눈과 가운데 점 사이가 30 cm입니다.</span></li>
+        <li><span>가까운 곳을 볼 때 쓰는 안경(돋보기)이 있으면 쓰세요. 실제 검사에서는 장비에 근거리 교정 렌즈를 끼웁니다.</span></li>
+        <li><span><b id="cover-eye">왼눈</b>은 감거나 손바닥으로 가리세요. 실제 검사에서는 안대를 붙입니다.</span></li>
+        <li><span>가운데 <b>검은 구멍 속 노란 점</b>만 계속 보세요. 눈은 평소처럼 깜빡여도 됩니다.</span></li>
+      </ol>
+
+      <div class="setup">
+        <fieldset>
+          <legend>검사 연습 눈</legend>
+          <div class="seg">
+            <label><input type="radio" name="eye" id="eye-od" value="OD" checked><span>오른눈 연습<small>왼눈을 가립니다</small></span></label>
+            <label><input type="radio" name="eye" id="eye-os" value="OS"><span>왼눈 연습<small>오른눈을 가립니다</small></span></label>
+          </div>
+        </fieldset>
+        <div>
+          <label class="lbl" for="inch">모니터 크기 (대각선, 인치)</label>
+          <div class="inch"><input id="inch" type="number" min="15" max="60" step="0.1" value="27" inputmode="decimal"><span class="fit" id="fit"></span></div>
+        </div>
+        <div class="ruler">
+          <div class="ruler-bar" id="ruler"></div>
+          <span>이 막대를 자로 재어 10 cm이면 화면 보정이 맞습니다. 다르면 인치 값을 고치세요.</span>
+        </div>
+      </div>
+
+      <div class="modes">
+        <h2>연습 순서 (한 눈씩)</h2>
+        <ol class="stages">
+          <li><b>1단계 맹점 찾기</b> <span id="d-bs">20초</span><br>주변에서 빛이 보이면 누릅니다. 맹점 때문에 안 보이는 빛도 있습니다.</li>
+          <li><b>2단계 시선 고정 연습</b> <span id="d-fix">20초</span><br>눈은 가운데 노란 점에 둔 채, 빛이 반짝 보이면 누릅니다. 빛이 나온 쪽을 쳐다보지 않고, 잔상에는 누르지 않습니다.</li>
+          <li><b>3단계 시야검사 연습</b> <span id="d-hfa">30초</span><br>실제 검사처럼 빛이 반짝 보이면 누릅니다. 잔상에는 누르지 않습니다. 삐비빅 소리가 나면 다시 가운데를 봅니다.</li>
+        </ol>
+        <p class="hint">단계마다 화면에 안내가 먼저 나옵니다. 다 읽고 이해했으면 마우스를 누르면 시작합니다.</p>
+        <div class="actions">
+          <button class="start" id="start" type="button"><span class="mark sm" aria-hidden="true"></span>연습 시작</button>
+          <button class="ghost" id="beep" type="button">경고음 미리 듣기</button>
+        </div>
+        <details class="settings">
+          <summary>연습 시간 설정 (직원용)</summary>
+          <div class="durs" id="durs"></div>
+          <p class="hist"><span id="hist-n"></span><button class="link" id="hist-clear" type="button">기록 지우기</button></p>
+        </details>
+        <p class="hint">시작하면 전체 화면으로 바뀝니다. Esc를 누르면 언제든 멈춥니다.</p>
+        <p class="hint fit bad" id="touch-warn" hidden>터치 화면으로 보입니다. 마우스가 연결된 25~33인치 모니터에서 쓰세요.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="env-h">
+      <h2 id="env-h">장비와 맞춘 환경 설정</h2>
+      <p class="sub">제목을 누르면 근거, 그림, 설정 위치, 근거 문서 쪽수가 펼쳐집니다.</p>
+      <div class="cats" id="cats"></div>
+    </section>
+  </div>
+</main>
+
+<canvas id="field" hidden></canvas>
+
+<script>
+const CONFIG = {
+  viewDistCm: 30,             // 눈–화면 거리 = 험프리 볼 반지름 30 cm
+  stimDiamDeg: 0.43,          // Goldmann III (4 mm²)
+  bgAsb: 31.5,                // 장비 배경 밝기
+  maxStimAsb: 10000,          // 장비 0 dB 빛 밝기
+  bgGray: 200,                // 화면 배경 회색값. 장비 볼처럼 흰색에 가깝게, 빛을 더 밝게 낼 여유를 남김
+  startDb: 25,                // 4-2 계단법 시작 밝기 (Full Threshold 1차 점)
+  stepsDb: [4, 2],            // 첫 반전 전 4 dB, 그 뒤 2 dB
+  activePoints: 8,            // 번갈아 재는 점 수. 한 점이 끝나면 다음 점을 더함
+  flCatch: { x: 15, y: -1.5, slots: [4, 12, 20, 28, 36, 44, 52] }, // 3단계 맹점 확인 빛: 이 번째 빛마다. x, y는 평균 맹점(귀쪽 15°, 약간 아래)
+  cleanGapMs: 1100,           // 맹점 확인 빛 앞뒤 빈 시간 (다른 빛에 늦게 누른 것과 섞이지 않게)
+  fnCatch: { brighterDb: 9, slots: [9, 25, 41, 57] }, // 밝은 빛 놓침 확인: 이미 본 자리에 9 dB 더 밝게
+  stimMs: 200,                // 빛 켜짐 시간
+  isiMs: [1000, 1000],        // 빛 시작 간격 (1초)
+  responseMs: [150, 1200],    // 이 범위의 클릭만 '보임'
+  // 가상 잔상: 단계마다 한 번. 방금 반짝인 강한 빛 2개와 이어서 나오는 강한 빛 3개의 자리에 남아 여러 개가 겹쳐 보임.
+  // 밝은 빛일수록 진하고 오래 남음(4~7초). 그동안에도 빛은 계속 나옴.
+  afterimage: { atFrac: [0.3, 0.45], carryOver: 2, nextLights: 3, minStrength: 0.35, durMs: [4000, 7000], posMs: 300, diamDeg: 0.75 },
+  leadInMs: 1500,             // 안내를 이해하고 누른 뒤 시작까지
+  introCps: 22,               // 안내 글자가 나타나는 속도(글자/초)
+  demoAlarmEveryMs: 30000,    // 연습용 경고음: 30초마다 1번 (실제 감지 경고음과 별도)
+  alarmPauseMs: 2500,         // 경고음 뒤 빛 멈춤
+  holeDiamDeg: 1.4,           // 가운데 점 구멍
+  fixDiamDeg: 0.5,            // 노란 가운데 점
+};
+// 단계별 연습 시간(초, 한 눈). 기본값은 최소값. 직원이 최소~최대 안에서 5초 단위로 바꿀 수 있음.
+const STAGES = {
+  bs: { name: '맹점 찾기', min: 20, max: 30 },
+  fix: { name: '시선 고정 연습', min: 20, max: 40 },
+  hfa: { name: '시야검사 연습', min: 30, max: 60 },
+};
+const ORDER = ['bs', 'fix', 'hfa'];
+// 1단계 맹점 찾기: ① 귀쪽 8°~30.5°를 2.5° 간격으로 넓게 훑고 ② 안 보인 자리 둘레를 좁혀 본다.
+// 눈–화면 거리가 30 cm에서 벗어나도 맹점이 훑는 범위에 들어온다. 확인 자리는 [귀쪽 부호 곱한 x, y].
+const BSMAP = {
+  coarseX: [8, 10.5, 13, 15.5, 18, 20.5, 23, 25.5, 28, 30.5], y: -1.5, isiMs: 1000,
+  avgDeg: 15.5,               // 30 cm에서 본 평균 맹점 가운데(귀쪽)
+  plausible: [7, 31],         // 이 범위를 벗어나면 맹점으로 보지 않음 (거리 약 13~64 cm에 해당)
+  controls: [[-15, -1.5], [0, 9], [0, -9]],
+};
+// 2단계 시선 고정 연습
+const FIXP = {
+  probeEvery: 3,              // 세 번째 빛마다 맹점 확인 빛 (1단계에서 맹점을 찾았을 때만)
+  eccDeg: [6, 26],            // 주변 빛 위치(중심에서 각도)
+};
+// 삐 · 비 · 빅~  [시작 ms, 길이 ms, 주파수 Hz]
+const ALARM_NOTES = [[0, 130, 2800], [180, 60, 2800], [280, 200, 3150]];
+const DOC = 'hfa-principles.pdf'; // 근거 문서: 험프리 자동 시야계(HFA) 검사 원리
+
+const $ = id => document.getElementById(id);
+const rad = d => d * Math.PI / 180;
+const deg = r => r * 180 / Math.PI;
+const rand = ([a, b]) => a + Math.random() * (b - a);
+const randInt = ([a, b]) => a + Math.floor(Math.random() * (b - a + 1));
+const fmt = (v, d = 1) => v.toFixed(d);
+const D = CONFIG.viewDistCm;
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const side = eye => (eye === 'OD' ? 1 : -1); // 귀쪽 방향(화면 x 부호)
+const DUR_KEY = 'hfa-durations';
+const DUR = (() => { // 저장된 연습 시간. 범위를 벗어나면 최소값
+  let saved = {};
+  try { saved = JSON.parse(store.get(DUR_KEY) || '{}'); } catch {}
+  return Object.fromEntries(ORDER.map(k => [k, saved[k] >= STAGES[k].min && saved[k] <= STAGES[k].max ? +saved[k] : STAGES[k].min]));
+})();
+
+// ── 기하: 화면 보정과 시야 좌표 ──────────────────────────
+function screenCal(inch) {
+  const w = screen.width, h = screen.height, ppc = Math.hypot(w, h) / (inch * 2.54); // CSS px / cm
+  return { ppc, wCm: w / ppc, hCm: h / ppc };
+}
+// 시야 좌표(°, 위쪽 +) → 화면 중심에서의 거리(cm)
+function fieldToCm(p) {
+  const r = rad(Math.hypot(p.x, p.y)), phi = Math.atan2(p.y, p.x), d = D * Math.tan(r);
+  return [d * Math.cos(phi), d * Math.sin(phi)];
+}
+const stimDiamCm = () => 2 * D * Math.tan(rad(CONFIG.stimDiamDeg / 2));
+
+// 24-2: 6° 간격, 경선에서 3° 떨어진 54점 (코쪽 27° 2점 포함)
+function grid242(eye) {
+  const t = side(eye), pts = [];
+  for (const [ay, mx] of [[21, 9], [15, 15], [9, 21], [3, 21]]) {
+    for (const sy of [1, -1]) {
+      for (let x = -mx; x <= mx; x += 6) pts.push({ x, y: ay * sy });
+      if (ay === 3) pts.push({ x: -27 * t, y: ay * sy });
+    }
+  }
+  return pts;
+}
+const isPrimary = p => Math.abs(p.x) === 9 && Math.abs(p.y) === 9;
+const nearBlindSpot = (p, c) => Math.hypot(p.x - c.x, p.y - c.y) < 5; // c = 맹점 가운데
+
+// ── 밝기: dB → 화면 회색값 (배경 대비 비율을 장비와 같게) ──
+// 회색값 ↔ 화면의 상대 밝기(0~1, sRGB)
+const lin = g => { const s = g / 255; return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+const enc = v => { v = Math.min(1, v); return Math.round((v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255); };
+const BG_GRAY = CONFIG.bgGray, BG_LIN = lin(BG_GRAY);
+// 장비에서 배경 대비 빛이 얼마나 더 밝은지((빛−배경)/배경). 화면에서도 이 비율을 그대로 쓴다.
+const contrast = db => (CONFIG.maxStimAsb / CONFIG.bgAsb) * Math.pow(10, -db / 10);
+const stimGray = db => enc(BG_LIN * (1 + contrast(db)));
+const rgb = g => `rgb(${g},${g},${g})`;
+function dbLimits() {
+  let lo = 0, hi = 0;
+  while (BG_LIN * (1 + contrast(lo)) > 1) lo++;
+  while (stimGray(hi + 1) > BG_GRAY) hi++;
+  return [lo, hi];
+}
+const [DB_MIN, DB_MAX] = dbLimits(); // 이 화면이 낼 수 있는 dB 범위
+const START_DB = Math.max(CONFIG.startDb, DB_MIN); // 화면이 낼 수 있는 가장 밝은 빛보다 밝게 시작하지 않음
+
+// 모든 빛이 쓰는 단 하나의 n×n 픽셀 원(행마다 [y, x0, 폭]). 안티에일리어싱 없음.
+function stimMask(n) {
+  const rows = [], c = n / 2;
+  for (let y = 0; y < n; y++) {
+    const dy = y + 0.5 - c, half = Math.sqrt(Math.max(0, c * c - dy * dy));
+    const x0 = Math.round(c - half), x1 = Math.round(c + half);
+    if (x1 > x0) rows.push([y, x0, x1 - x0]);
+  }
+  return rows;
+}
+const maskPixels = rows => rows.reduce((s, r) => s + r[2], 0);
+const stimPx = (inch, dpr) => Math.max(3, Math.round(stimDiamCm() * screenCal(inch).ppc * dpr));
+
+// ── 4-2 dB 계단법 (Full Threshold) ───────────────────────
+// 보이면 더 어둡게(+dB), 안 보이면 더 밝게(−dB). 응답이 처음 뒤집히면 2 dB로 줄이고, 두 번째로 뒤집히면 끝.
+// 보이는 한계 = 마지막으로 본 밝기. 모니터 한계(DB_MIN~DB_MAX)에 닿아도 끝.
+function stepStair(s, seen) {
+  s.n++;
+  if (seen) s.seenDb = s.db;
+  if (s.last !== null && seen !== s.last) { s.rev++; s.step = CONFIG.stepsDb[1]; }
+  s.last = seen;
+  const next = Math.min(DB_MAX, Math.max(DB_MIN, s.db + (seen ? s.step : -s.step)));
+  if (s.rev >= 2 || next === s.db) s.done = true;
+  else s.db = next;
+}
+const thrLabel = s => (s.done ? (s.seenDb ?? `<${DB_MIN}`) : '–');
+
+// ── 경고음 ───────────────────────────────────────────────
+let actx;
+function audio() {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function playAlarm() {
+  const ac = audio(), t0 = ac.currentTime + 0.03, out = ac.createGain();
+  out.gain.value = 0.9;
+  out.connect(ac.destination);
+  for (const [at, dur, f] of ALARM_NOTES) {
+    const s = t0 + at / 1000, e = s + dur / 1000, env = ac.createGain();
+    env.gain.setValueAtTime(0, s);
+    env.gain.linearRampToValueAtTime(1, s + 0.004);
+    env.gain.setValueAtTime(1, e - 0.012);
+    env.gain.linearRampToValueAtTime(0, e);
+    env.connect(out);
+    for (const [mult, amp] of [[1, 0.82], [2, 0.12]]) { // 사인파 + 약한 배음 = 맑은 기계음
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine';
+      o.frequency.value = f * mult;
+      g.gain.value = amp;
+      o.connect(g).connect(env);
+      o.start(s);
+      o.stop(e + 0.02);
+    }
+  }
+}
+
+// ── 화면 정보 ────────────────────────────────────────────
+const eyeOf = () => document.querySelector('input[name="eye"]:checked').value;
+const eyeName = e => (e === 'OD' ? '오른눈' : '왼눈');
+function currentInch() {
+  const v = parseFloat($('inch').value);
+  return v >= 15 && v <= 60 ? v : 27;
+}
+function fitInfo() {
+  const inch = currentInch(), cal = screenCal(inch), ext = grid242('OD').map(fieldToCm), m = stimDiamCm();
+  const needX = Math.max(...ext.map(([x]) => Math.abs(x))), needY = Math.max(...ext.map(([, y]) => Math.abs(y)));
+  return {
+    inch, ...cal, needX, needY,
+    ok: cal.wCm / 2 >= needX + m && cal.hCm / 2 >= needY + m,
+    degX: deg(Math.atan(cal.wCm / 2 / D)), degY: deg(Math.atan(cal.hCm / 2 / D)),
+    dpr: window.devicePixelRatio || 1,
+  };
+}
+
+// ── 그림 ─────────────────────────────────────────────────
+// res 없음: 설정 화면(1차 점 강조). res 있음: 결과(보이는 한계 숫자, 맹점 확인 결과).
+function mapSvg(eye, res) {
+  const t = side(eye), by = new Map((res?.stairs || []).map(s => [s.x + ',' + s.y, s]));
+  const bs = res?.bs || { x: CONFIG.flCatch.x * t, y: CONFIG.flCatch.y }, flx = bs.x, fly = -bs.y;
+  let s = `<svg class="vf" viewBox="-34 -27 68 54" role="img" aria-label="${eyeName(eye)} 24-2 검사점 지도">`;
+  s += '<line class="axis" x1="-31" y1="0" x2="31" y2="0"/><line class="axis" x1="0" y1="-25" x2="0" y2="25"/>';
+  s += `<ellipse class="bs" cx="${flx}" cy="${fly}" rx="2.8" ry="3.8"/>`;
+  s += `<text x="${flx}" y="${fly + 6.6}" text-anchor="middle" style="font-size:2px">맹점</text>`;
+  s += `<rect class="${res?.flSeen ? 'fl-hit' : 'fl'}" x="${flx - 0.8}" y="${fly - 0.8}" width="1.6" height="1.6" transform="rotate(45 ${flx} ${fly})"/>`;
+  for (const p of grid242(eye)) {
+    const st = by.get(p.x + ',' + p.y), at = `cx="${p.x}" cy="${-p.y}"`;
+    if (st) s += `<text class="thr${st.done ? '' : ' na'}" x="${p.x}" y="${-p.y + 0.95}" text-anchor="middle">${thrLabel(st)}</text>`;
+    else if (!res && isPrimary(p)) s += `<circle class="pt-key" ${at} r="1.25"/>`;
+    else s += `<circle class="pt" ${at} r="${res ? 0.45 : 0.85}"/>`;
+  }
+  s += '<circle class="hole" cx="0" cy="0" r="1.2"/><circle class="fixdot" cx="0" cy="0" r=".5"/>';
+  s += `<text x="${-31 * t}" y="-23" text-anchor="${t > 0 ? 'start' : 'end'}">코쪽</text>`;
+  s += `<text x="${31 * t}" y="-23" text-anchor="${t > 0 ? 'end' : 'start'}">귀쪽</text>`;
+  return s + '</svg>';
+}
+
+function fixSvg(eye) {
+  const t = side(eye), bx = CONFIG.flCatch.x * t, by = -CONFIG.flCatch.y;
+  return `<svg class="vf" viewBox="-34 -22 68 44" role="img" aria-label="시선 고정 연습 화면 구성">
+    <line class="axis" x1="-31" y1="0" x2="31" y2="0"/><line class="axis" x1="0" y1="-20" x2="0" y2="20"/>
+    <ellipse class="bs" cx="${bx}" cy="${by}" rx="2.8" ry="3.8"/>
+    <rect class="fl" x="${bx - 0.8}" y="${by - 0.8}" width="1.6" height="1.6" transform="rotate(45 ${bx} ${by})"/>
+    <text x="${bx}" y="${by + 6.6}" text-anchor="middle">맹점 확인 빛</text>
+    <circle class="dist" cx="${-12 * t}" cy="-10" r=".35"/><circle class="dist" cx="${-21 * t}" cy="9" r=".35"/>
+    <circle class="dist" cx="${6 * t}" cy="-15" r=".35"/><circle class="dist" cx="${-6 * t}" cy="15" r=".35"/>
+    <text x="${-12 * t}" y="-12.4" text-anchor="middle">주변 빛 (같은 크기로 반짝)</text>
+    <circle class="hole" cx="0" cy="0" r="1.2"/><circle class="fixdot" cx="0" cy="0" r=".5"/>
+    <text x="0" y="-2.6" text-anchor="middle">눈은 여기에 고정</text>
+  </svg>`;
+}
+
+// 1단계 맹점 찾기 자리: 귀쪽으로 넓게 훑는 줄과 잘 보이는 확인 자리
+const bsCoarse = eye => BSMAP.coarseX.map(x => ({ x: x * side(eye), y: BSMAP.y }));
+const bsControls = eye => BSMAP.controls.map(([x, y]) => ({ x: x * side(eye), y }));
+function bsSvg(eye) {
+  const t = side(eye), cx = CONFIG.flCatch.x * t, cy = -CONFIG.flCatch.y;
+  let s = `<svg class="vf" viewBox="${t > 0 ? -4 : -36} ${cy - 9} 40 18" role="img" aria-label="맹점 찾기와 맹점 확인 자리">`;
+  s += `<line class="axis" x1="-40" y1="0" x2="40" y2="0"/>`;
+  s += `<ellipse class="bs" cx="${cx}" cy="${cy}" rx="2.8" ry="3.8"/>`;
+  for (const p of bsCoarse(eye)) s += `<circle class="pt-key" cx="${p.x}" cy="${-p.y}" r=".45"/>`;
+  s += `<rect class="fl" x="${cx - 1.1}" y="${cy - 1.1}" width="2.2" height="2.2" transform="rotate(45 ${cx} ${cy})"/>`;
+  s += '<circle class="hole" cx="0" cy="0" r="1.2"/><circle class="fixdot" cx="0" cy="0" r=".5"/>';
+  s += `<text x="0" y="-2.4" text-anchor="middle" style="font-size:1.3px">가운데 점</text>`;
+  s += `<text x="${19 * t}" y="${cy - 5}" text-anchor="middle" style="font-size:1.3px">1단계: 8°~30.5°를 2.5° 간격으로 훑음 (점)</text>`;
+  s += `<text x="${cx}" y="${cy + 6.4}" text-anchor="middle" style="font-size:1.3px">2·3단계 맹점 확인 빛 (마름모)</text>`;
+  return s + '</svg>';
+}
+
+function distSvg(f) {
+  const hh = f.hCm / 2, top = Math.max(hh, f.needY) + 3;
+  const vb = `-4 ${-top} 60 ${2 * top}`, ns = 'vector-effect="non-scaling-stroke"';
+  const fs = (2 * top) / 18;
+  return `<svg class="dg" viewBox="${vb}" role="img" aria-label="눈과 화면 옆모습: 거리 ${D} cm">
+    <line class="soft" x1="0" y1="0" x2="${D}" y2="0" stroke-dasharray="4 3" stroke-width="1" ${ns}/>
+    <line class="ray" x1="0" y1="0" x2="${D}" y2="${-f.needY}" stroke-width="1.5" ${ns}/>
+    <line class="ray" x1="0" y1="0" x2="${D}" y2="${f.needY}" stroke-width="1.5" ${ns}/>
+    <line class="ink" x1="${D}" y1="${-hh}" x2="${D}" y2="${hh}" stroke-width="4" ${ns}/>
+    <circle class="ink" cx="0" cy="0" r="1.4" stroke-width="1.5" ${ns}/>
+    <circle class="bar" cx="0.9" cy="0" r=".45"/>
+    <text x="${D / 2}" y="${fs * 1.3}" text-anchor="middle" style="font-size:${fs}px">${D} cm</text>
+    <text x="${D + 1.2}" y="${-hh + fs * 0.35}" style="font-size:${fs}px">화면 끝 ${fmt(hh)} cm</text>
+    <text x="${D + 1.2}" y="${-f.needY + fs * 1.2}" style="font-size:${fs}px">24-2 끝 ${fmt(f.needY)} cm</text>
+    <text x="0" y="${fs * 2.2}" text-anchor="middle" style="font-size:${fs}px">눈</text>
+  </svg>`;
+}
+
+// 4-2 계단법 예: 시작 보임 → +4 보임 → +8 안 보임(반전) → +6 보임(반전, 끝) → 보이는 한계 = 시작+6 dB
+function stairSvg() {
+  const b = START_DB, seq = [[b, 1], [b + 4, 1], [b + 8, 0], [b + 6, 1]], x = i => 150 + i * 110, y = db => 150 - (db - (b - 5)) * 8;
+  let s = '<svg class="dg" viewBox="0 0 600 175" role="img" aria-label="4-2 dB 계단법 예시">';
+  for (const db of [b - 5, b, b + 5, b + 10]) s += `<text x="40" y="${y(db) + 4}" text-anchor="end">${db}</text><line class="soft" x1="50" y1="${y(db)}" x2="580" y2="${y(db)}" stroke-width=".5" stroke-dasharray="2 4"/>`;
+  s += '<text x="0" y="14">dB (클수록 어두운 빛)</text>';
+  s += `<line class="ray" x1="60" y1="${y(b + 6)}" x2="580" y2="${y(b + 6)}" stroke-width="1.5" stroke-dasharray="6 4"/><text x="580" y="${y(b + 6) - 6}" text-anchor="end">보이는 한계 ${b + 6} dB</text>`;
+  s += `<polyline class="ink" stroke-width="1.5" points="${seq.map(([db], i) => `${x(i)},${y(db)}`).join(' ')}"/>`;
+  seq.forEach(([db, seen], i) => {
+    s += `<circle class="${seen ? 'bar' : 'dot-open'}" cx="${x(i)}" cy="${y(db)}" r="6"/>`;
+    s += `<text x="${x(i)}" y="168" text-anchor="middle">${i + 1}번째 · ${db} ${seen ? '보임' : '안 보임'}</text>`;
+  });
+  ['+4', '+4', '−2'].forEach((d, i) => { s += `<text x="${(x(i) + x(i + 1)) / 2}" y="${(y(seq[i][0]) + y(seq[i + 1][0])) / 2 - 8}" text-anchor="middle">${d}</text>`; });
+  return s + '</svg>';
+}
+
+// 클릭 인정 시간 예: 띠 안의 클릭은 보임, 띠 밖의 클릭(잔상에 누른 것 포함)은 헛누름
+function windowSvg() {
+  const x = s => 80 + s * 165, onsets = [0.2, 0.9, 1.5], [lo, hi] = CONFIG.responseMs.map(v => v / 1000);
+  let s = '<svg class="dg" viewBox="0 0 600 112" role="img" aria-label="클릭 인정 시간 예시">';
+  s += '<text x="0" y="34">빛</text><text x="0" y="62">클릭 인정</text><text x="0" y="86">클릭</text>';
+  onsets.forEach((on, i) => {
+    s += `<rect class="band" x="${x(on + lo)}" y="${48 + i * 4}" width="${x(Math.min(on + hi, 3)) - x(on + lo)}" height="10"/>`;
+    s += `<rect class="bar" x="${x(on)}" y="18" width="${CONFIG.stimMs / 1000 * 165}" height="22"/>`;
+  });
+  s += `<text x="${x(0.2) + 40}" y="34">${CONFIG.stimMs} ms</text>`;
+  s += `<circle class="bar" cx="${x(0.65)}" cy="82" r="5"/><text x="${x(0.65) + 9}" y="86">보임</text>`;
+  s += `<circle class="warnbar" cx="${x(2.85)}" cy="82" r="5"/><text x="${x(2.85) - 9}" y="86" text-anchor="end">헛누름 (잔상 등)</text>`;
+  for (let i = 0; i <= 3; i++) s += `<text x="${x(i)}" y="106" text-anchor="middle">${i}초</text>`;
+  return s + '</svg>';
+}
+
+function alarmSvg() {
+  const x = ms => 20 + ms * 1.1, syl = ['삐', '비', '빅~'];
+  let s = '<svg class="dg" viewBox="0 0 600 110" role="img" aria-label="경고음 모양: 삐 비 빅">';
+  ALARM_NOTES.forEach(([at, dur, f], i) => {
+    s += `<rect class="bar" x="${x(at)}" y="32" width="${dur * 1.1}" height="38" rx="2"/>`;
+    s += `<text x="${x(at)}" y="22">${syl[i]} · ${(f / 1000).toFixed(2)} kHz</text>`;
+    s += `<text x="${x(at)}" y="90">${dur} ms</text>`;
+  });
+  s += `<line class="soft" x1="${x(0)}" y1="78" x2="${x(500)}" y2="78" stroke-width="1"/>`;
+  return s + '</svg>';
+}
+
+// 결과지 아래 시선 그래프를 흉내 냄. 빨간 막대 = 맹점 빛을 눌러 실제로 감지한 시선 이탈, 회색 막대 = 연습용 경고음.
+function gazeSvg(r) {
+  const x = t => 50 + (t / r.testMs) * 530;
+  let s = '<svg class="dg" viewBox="0 0 600 96" role="img" aria-label="모의 시선 그래프">';
+  s += '<text x="0" y="64">시선</text><line class="soft" x1="50" y1="60" x2="580" y2="60" stroke-width="1"/>';
+  for (const t of r.trialTimes) s += `<line class="soft" x1="${x(t)}" y1="60" x2="${x(t)}" y2="66" stroke-width="1"/>`;
+  for (const a of r.alarmLog) {
+    const real = a.kind === 'real';
+    s += `<rect class="${real ? 'warnbar' : 'mutedbar'}" x="${x(a.t) - 3}" y="${real ? 20 : 34}" width="6" height="${real ? 40 : 26}"/>`;
+    s += `<text x="${x(a.t)}" y="${real ? 13 : 27}" text-anchor="middle">${real ? '감지' : '연습용'}</text>`;
+  }
+  for (const sec of [0, r.testMs / 2000, r.testMs / 1000]) s += `<text x="${x(sec * 1000)}" y="88" text-anchor="middle">${sec}초</text>`;
+  return s + '</svg>';
+}
+
+// ── 환경 설정 근거 상자 ──────────────────────────────────
+const SRC = 'humphrey-vf-demo.html ›';
+const AI_STRIP_MS = [100, 600, 1500, 3000, 4500, 6000];
+const docLink = (page, what) => `<a href="${DOC}#page=${page}" target="_blank" rel="noopener">검사원리 문서 p.${page} ${what}</a>`;
+const srcLine = (code, page, what) => `<p class="src">설정 위치 · ${SRC} ${code}<br>근거 문서 · ${docLink(page, what)}</p>`;
+const CATS = [
+  {
+    id: 'dist', k: '검사 거리', v: () => `${D} cm`, d: '화면 중앙 정면',
+    body: f => `
+      <h3>검사 거리 ${D} cm와 가운데 점</h3>
+      <p>험프리 장비는 둥근 볼 안쪽에 빛을 비추고, 턱받침과 이마받침으로 눈을 볼 중심에 고정합니다. 이 연습은 눈을 모니터 정중앙 정면 ${D} cm에 두고, 각 검사점의 각도를 화면 위 거리(거리 × tan 각도)로 바꿔 장비와 같은 방향에서 빛이 보이게 했습니다.</p>
+      <p>가운데 점은 장비의 중앙 노란 LED처럼 검은 구멍 속 노란 점으로 그립니다. 시선이 벗어나면 빛이 의도하지 않은 망막 위치에 맺혀 결과가 틀어지므로, 이 점이 시야 좌표의 기준입니다.</p>
+      <figure>${distSvg(f)}<figcaption>옆에서 본 모습. 화면이 24-2 맨 바깥 점보다 커야 모든 점이 나옵니다.</figcaption></figure>
+      <dl class="kv">
+        <div><dt>모니터</dt><dd>${f.inch}″ · ${fmt(f.wCm)} × ${fmt(f.hCm)} cm</dd></div>
+        <div><dt>1 cm</dt><dd>${fmt(f.ppc)} px</dd></div>
+        <div><dt>24-2 끝</dt><dd>${fmt(f.needX)} × ${fmt(f.needY)} cm</dd></div>
+        <div><dt>화면이 덮는 시야</dt><dd>±${Math.floor(f.degX)}° × ±${Math.floor(f.degY)}°</dd></div>
+      </dl>
+      <p class="aside">실제 장비는 반지름 30 cm인 반구형 볼의 중심에 눈을 두므로, 가운데 노란 점을 포함해 볼 안쪽 모든 점이 눈에서 30 cm입니다. 이 연습도 30 cm로 계산합니다. 평면 모니터라 바깥쪽 점은 눈에서 30 cm보다 조금 멀지만, 빛이 보이는 방향(각도)은 장비와 같게 맞춥니다. Goldmann III(4 mm², 지름 2.26 mm)가 시각 0.43°가 되는 것도 30 cm 기준입니다. 중심 암점 환자용 다이아몬드 모양 가운데 점은 이 연습에 없습니다.</p>
+      ${srcLine('CONFIG.viewDistCm, fieldToCm()', 1, '§1 중심점')}`,
+  },
+  {
+    id: 'size', k: '빛 크기', v: () => `${CONFIG.stimDiamDeg}°`, d: 'Goldmann III 고정',
+    body: f => {
+      const n = stimPx(f.inch, f.dpr), px = maskPixels(stimMask(n));
+      const eMax = rad(Math.max(...grid242('OD').map(p => Math.hypot(p.x, p.y))));
+      return `
+      <h3>빛 크기 Goldmann III</h3>
+      <p>험프리 표준 자극은 Goldmann III, 면적 4 mm²인 흰 원으로 시각 약 ${CONFIG.stimDiamDeg}°입니다. ${D} cm 거리에서는 지름 ${fmt(stimDiamCm() * 10, 2)} mm이고, 이 모니터에서는 ${n} × ${n} 기기 픽셀입니다.</p>
+      <p>밝은 빛일수록 더 커 보이는 착시가 있어서, 모든 빛을 똑같은 픽셀 모양 하나로 찍고 회색값만 바꿉니다. 가장자리 흐림(안티에일리어싱)도 쓰지 않습니다.</p>
+      <figure><div class="masks">${[START_DB, START_DB + 6, START_DB + 12].map(db => `<div><canvas data-db="${db}"></canvas><span>${db} dB · 회색 ${stimGray(db)}</span></div>`).join('')}</div>
+        <figcaption>확대한 실제 픽셀 모양. 밝기가 달라도 칸 수는 모두 ${px}개로 같습니다.</figcaption></figure>
+      <dl class="kv">
+        <div><dt>지름</dt><dd>${fmt(stimDiamCm() * 10, 2)} mm · ${n} px</dd></div>
+        <div><dt>화면 배율</dt><dd>${f.dpr}×</dd></div>
+      </dl>
+      <p class="aside">평면 화면이라 가장 바깥 27° 부근에서는 같은 픽셀 크기가 시각 약 ${fmt(CONFIG.stimDiamDeg * Math.cos(eMax) ** 2, 2)}~${fmt(CONFIG.stimDiamDeg * Math.cos(eMax), 2)}°로 조금 작게 맺힙니다.</p>
+      ${srcLine('CONFIG.stimDiamDeg, stimMask()', 1, '§2 표준 물리 조건')}`;
+    },
+    after: f => {
+      const n = stimPx(f.inch, f.dpr), rows = stimMask(n), cell = Math.max(3, Math.floor(110 / (n + 2)));
+      document.querySelectorAll('.masks canvas').forEach(cv => {
+        const side = (n + 2) * cell, c = cv.getContext('2d');
+        cv.width = side; cv.height = side; cv.style.width = side + 'px';
+        c.fillStyle = rgb(BG_GRAY); c.fillRect(0, 0, side, side);
+        c.fillStyle = rgb(stimGray(+cv.dataset.db));
+        for (const [y, x0, w] of rows) c.fillRect((x0 + 1) * cell, (y + 1) * cell, w * cell, cell);
+        c.strokeStyle = 'rgba(0,0,0,.35)';
+        for (let i = 0; i <= n + 2; i++) {
+          c.beginPath(); c.moveTo(i * cell + .5, 0); c.lineTo(i * cell + .5, side); c.stroke();
+          c.beginPath(); c.moveTo(0, i * cell + .5); c.lineTo(side, i * cell + .5); c.stroke();
+        }
+      });
+    },
+  },
+  {
+    id: 'lum', k: '밝기', v: () => '31.5 asb', d: '배경 · 빛 0~51 dB',
+    body: () => {
+      const sw = Array.from({ length: 8 }, (_, i) => START_DB + i * 2).map(db =>
+        `<div class="sw${db === START_DB ? ' on' : ''}"><i style="background:${rgb(BG_GRAY)};--dot:${rgb(stimGray(db))}"></i><span>${db} dB<br>${stimGray(db)}</span></div>`).join('');
+      return `
+      <h3>배경 31.5 asb, 빛은 dB로 조절</h3>
+      <p>험프리 볼 배경은 31.5 asb(10 cd/m²)입니다. 명소시 조건이라 원뿔세포(추체) 기능을 보고, 환자 눈에는 흰 바탕으로 보입니다. 가장 밝은 빛(0 dB)은 10,000 asb이고 장비 범위는 0~51 dB입니다. dB가 클수록 더 어두운 빛이며, 더 높은 dB까지 보면 감도가 좋은 것입니다.</p>
+      <p>화면도 흰색에 가까운 밝은 회색(${BG_GRAY}/255)을 배경으로 쓰고, 빛은 배경보다 밝은 흰색으로 띄웁니다. 배경을 완전한 흰색(255)으로 하면 더 밝은 빛을 낼 수 없어서 조금 남겨 두었습니다. 웹 브라우저는 모니터 자체 밝기를 바꿀 수 없으므로, 프로그램이 dB마다 배경 대비 빛의 밝기 비율을 장비와 같게 계산합니다. 모니터 밝기를 바꿔도 이 비율은 그대로입니다.</p>
+      <figure><div class="swatches">${sw}</div>
+        <figcaption>배경 위 dB별 빛과 회색값(0~255). 진한 테두리는 시작 밝기 ${START_DB} dB입니다.</figcaption></figure>
+      <dl class="kv">
+        <div><dt>배경 회색값</dt><dd>${BG_GRAY} / 255</dd></div>
+        <div><dt>대비 기준</dt><dd>(빛−배경)/배경 · sRGB</dd></div>
+        <div><dt>장비 범위</dt><dd>0~51 dB</dd></div>
+        <div><dt>이 화면 범위</dt><dd>${DB_MIN}~${DB_MAX} dB</dd></div>
+      </dl>
+      <p class="aside">흰 바탕 위에서는 ${DB_MIN} dB보다 밝은 빛을 더 밝게 낼 수 없어 가장 밝은 흰색으로 같게 보입니다. 그래서 계단법도 ${START_DB} dB에서 시작합니다. 가장 희미한 쪽(40 dB 이상)은 배경과 회색값 차이가 몇 단계뿐이라 모니터마다 보이는 정도가 조금 다릅니다. 자동 밝기, HDR, 야간 모드(블루라이트 필터)는 끄세요.</p>
+      ${srcLine('CONFIG.bgGray, bgAsb, maxStimAsb, contrast()', 1, '§2 표준 물리 조건')}`;
+    },
+  },
+  {
+    id: 'grid', k: '검사점', v: () => '24-2', d: '1차 점부터 넓혀 감',
+    body: () => `
+      <h3>검사점 24-2</h3>
+      <p>가장 널리 쓰는 24-2 검사는 6° 간격 54개 점입니다. 점들이 수평·수직 경선에서 3°씩 비켜 있어서, 경선을 경계로 생기는 녹내장·신경학적 결손을 잡기 좋습니다. 코쪽 27° 점 2개는 비측계단을 찾습니다. (30-2는 76점, 10-2는 2° 간격 68점입니다.)</p>
+      <p>장비가 먼저 재는 1차 점 4개(±9°, ±9°)와 사분면마다 무작위로 고른 1개, 모두 ${CONFIG.activePoints}점부터 번갈아 잽니다. 한 점의 보이는 한계가 정해지면 남은 점 하나를 무작위로 더해서, 연습 내내 사방에서 빛이 나옵니다. 다음 위치는 예측할 수 없습니다.</p>
+      <figure>${mapSvg(eyeOf())}<figcaption>${eyeName(eyeOf())} 연습, 환자가 화면을 볼 때의 방향. 검은 점은 1차 점, 마름모는 맹점 확인 자리, 점선 타원은 맹점입니다.</figcaption></figure>
+      ${srcLine('grid242(), pickPoints()', 2, '§2 대표 검사 패턴')}`,
+  },
+  {
+    id: 'thr', k: '보이는 한계 찾기', v: () => '4-2 dB', d: '빛 200 ms · 무작위',
+    body: () => `
+      <h3>보이는 한계 찾기: 4-2 dB 계단법</h3>
+      <p>빛점은 움직이지 않습니다. 한 자리에서 밝기만 바꿔 보임과 안 보임의 경계, 곧 볼 수 있는 가장 어두운 빛(보이는 한계)을 찾습니다. 이 연습은 Full Threshold의 4-2 dB 계단법을 씁니다. ${START_DB} dB에서 시작해 보이면 4 dB 어둡게, 안 보이면 4 dB 밝게 바꿉니다. 응답이 처음 뒤집히면 2 dB씩 움직이고, 두 번째로 뒤집히면 끝냅니다. 마지막으로 본 밝기가 그 자리의 보이는 한계입니다.</p>
+      <figure>${stairSvg()}<figcaption>한 자리의 예. 채운 점은 보임, 빈 점은 안 보임입니다.</figcaption></figure>
+      <p>빛은 ${CONFIG.stimMs} ms만 켜집니다. 눈이 빛 쪽으로 움직이는 데 걸리는 시간보다 짧습니다. 다음 빛은 ${CONFIG.isiMs[0] === CONFIG.isiMs[1] ? CONFIG.isiMs[0] / 1000 : `${CONFIG.isiMs[0] / 1000}~${CONFIG.isiMs[1] / 1000}`}초 간격으로 나옵니다.</p>
+      <dl class="kv">
+        <div><dt>시작 밝기</dt><dd>${START_DB} dB</dd></div>
+        <div><dt>걸음</dt><dd>${CONFIG.stepsDb[0]} → ${CONFIG.stepsDb[1]} dB</dd></div>
+        <div><dt>빛 켜짐</dt><dd>${CONFIG.stimMs} ms</dd></div>
+        <div><dt>연습 시간 (3단계)</dt><dd>${DUR.hfa}초 · ${STAGES.hfa.min}~${STAGES.hfa.max}초</dd></div>
+      </dl>
+      <p class="aside">실제 장비의 SITA(Standard, Fast, Faster)는 연령별 정상 모델과 이웃 점 정보를 쓰는 베이지안 추정이라 같은 한계를 더 빨리 찾습니다.</p>
+      ${srcLine('CONFIG.startDb, stepsDb, stepStair()', 1, '§2 역치 탐색 방식')}`,
+  },
+  {
+    id: 'rel', k: '응답 신뢰도', v: () => 'FP · FN', d: '가짜 응답 · 놓침',
+    body: () => `
+      <h3>헛누름과 밝은 빛 놓침</h3>
+      <p><b>헛누름(FP)</b>은 빛이 없는데 누른 경우입니다. SITA처럼 응답 시간 창으로 셉니다. 빛이 켜진 뒤 ${CONFIG.responseMs[0] / 1000}~${CONFIG.responseMs[1] / 1000}초 안의 클릭만 본 것으로 인정하고, 그 밖의 클릭은 헛누름으로 셉니다.</p>
+      <p><b>밝은 빛 놓침(FN)</b>은 이미 본 자리에 ${CONFIG.fnCatch.brighterDb} dB 더 밝은 빛을 다시 띄웠는데 누르지 않은 경우입니다. 3단계에서 약 16개 빛마다 한 번 확인합니다. 피곤하거나 집중이 떨어졌다는 신호입니다.</p>
+      <p><b>잔상.</b> 강한 빛을 본 뒤 그 자리에 점이 남아 보이면 잔상에 누르기 쉽고, 이것도 헛누름이 됩니다. 실제 잔상처럼 처음 잠깐(${CONFIG.afterimage.posMs / 1000}초)은 밝은 점으로, 그 뒤에는 배경보다 어둡고 색이 도는 점으로 바뀌어 색감(청록→파랑→보라)과 밝기가 불규칙하게 오르내리며 번지다가 서서히 사라집니다. 한 점도 동그랗지 않고 얼룩집니다. 밝은 빛일수록 진하고 오래 남습니다(${CONFIG.afterimage.durMs[0] / 1000}~${CONFIG.afterimage.durMs[1] / 1000}초). 3단계에서는 어두운 빛에는 생기지 않습니다.</p>
+      <p>2·3단계마다 한 번, 방금 반짝인 강한 빛 ${CONFIG.afterimage.carryOver}개의 잔상이 떠오르고 이어서 나오는 강한 빛 ${CONFIG.afterimage.nextLights}개에도 잔상이 생겨 여러 개가 겹쳐 보입니다. 그동안에도 빛은 계속 나오므로, 잔상이 아닌 새로 반짝이는 빛에만 누르는 연습이 됩니다. 잔상은 가상으로 만든 것입니다.</p>
+      <figure><div class="aistrip">${AI_STRIP_MS.map(ms => `<div><canvas data-ms="${ms}"></canvas><span>${ms / 1000}초</span></div>`).join('')}</div><figcaption>잔상 하나가 시간에 따라 바뀌는 모습(크게 확대). 처음엔 밝고, 곧 어둡고 색이 돌며 얼룩마다 밝기가 오르내리다 사라집니다.</figcaption></figure>
+      <figure>${windowSvg()}<figcaption>노란 띠 안의 클릭은 보임, 띠 밖의 클릭은 헛누름입니다. 빛이 1초마다 나와서 띠가 겹치면 가장 최근 빛에 인정합니다.</figcaption></figure>
+      <dl class="kv">
+        <div><dt>헛누름 주의</dt><dd>약 15% 초과</dd></div>
+        <div><dt>밝은 빛 놓침 확인</dt><dd>약 16개 빛마다 · +${CONFIG.fnCatch.brighterDb} dB</dd></div>
+        <div><dt>가상 잔상</dt><dd>단계마다 1번 · 빛 ${CONFIG.afterimage.carryOver}+${CONFIG.afterimage.nextLights}개 자리 · 각 ${CONFIG.afterimage.durMs[0] / 1000}~${CONFIG.afterimage.durMs[1] / 1000}초</dd></div>
+      </dl>
+      <p class="aside">녹내장이 진행된 눈에서는 밝은 빛 놓침이 원래 많이 나올 수 있습니다. 3단계 점수(응답 정확도) = 맞게 반응한 확인 자극(맹점 빛 안 누름, 밝은 빛 누름, 잔상 안 누름) ÷ (확인 자극 + 그 밖의 헛누름) × 100입니다.</p>
+      ${srcLine('CONFIG.responseMs, fnCatch, afterimage, aiLayers()', 2, '응답 신뢰도 확인 · 결과 해석 체크리스트')}`,
+    after: () => { // 잔상 하나의 시간 변화 견본 (같은 그리기 함수를 씀)
+      const a = { onset: 0, from: 0, s: 1, dur: 6600, hue: 0, f: 0.5,
+        blobs: [{ dx: 0, dy: 0, r: 1, ph: 0.6 }, { dx: 0.45, dy: -0.3, r: 0.65, ph: 2.6 }, { dx: -0.35, dy: 0.4, r: 0.55, ph: 4.4 }] };
+      const dpr = window.devicePixelRatio || 1, side = 64;
+      document.querySelectorAll('.aistrip canvas').forEach(cv => {
+        cv.width = cv.height = side * dpr; cv.style.width = cv.style.height = side + 'px';
+        const c = cv.getContext('2d');
+        c.fillStyle = rgb(BG_GRAY); c.fillRect(0, 0, cv.width, cv.height);
+        paintAfterimage(c, a, +cv.dataset.ms, cv.width / 2, cv.height / 2, 10 * dpr);
+      });
+    },
+  },
+  {
+    id: 'fixmon', k: '시선 감시', v: () => 'FL · 경고음', d: '맹점 찾기 · 맹점 확인',
+    body: () => `
+      <h3>시선 감시: 카메라 없이 맹점으로 확인</h3>
+      <p>누구나 귀쪽 15° 부근에 빛을 못 느끼는 맹점이 있습니다. 가운데를 보고 있으면 맹점에 띄운 빛은 보이지 않고, 눈이 움직이면 그 빛이 보이는 망막에 떨어져 보이게 됩니다. 그래서 맹점에 띄운 빛을 누르면 눈이 움직였다는 실제 증거가 됩니다. 장비의 Heijl-Krakau 맹점 감시와 같은 원리입니다.</p>
+      <p><b>1단계 맹점 찾기.</b> 눈–화면 거리나 모니터 크기 입력이 조금 틀리면 맹점이 화면에서 놓이는 자리도 달라집니다. 그래서 평균 자리 한 곳만 보지 않고 ① 귀쪽 ${BSMAP.coarseX[0]}°~${BSMAP.coarseX.at(-1)}°를 2.5° 간격으로 ${BSMAP.coarseX.length}곳 넓게 훑고, ② 안 보인 구간이 있으면 그 가운데와 위아래·양옆을 더 띄워 좁힙니다. 시간이 남으면 ②를 되풀이합니다. 빛 간격은 ${BSMAP.isiMs / 1000}초이고 잘 보이는 확인 자리 빛을 섞습니다. 자리마다 안 보인 비율을 무게로 삼은 가운데를 그 사람의 맹점으로 정합니다.</p>
+      <p><b>거리 어림.</b> 30 cm에서 평균 맹점은 귀쪽 ${BSMAP.avgDeg}°에 보입니다. 찾은 맹점이 더 바깥이면 화면에 너무 가까이, 더 안쪽이면 멀리 앉은 것이므로 결과에 어림한 거리를 함께 알려 줍니다.</p>
+      <p><b>못 찾았을 때.</b> 모든 빛이 보였거나 확인 자리 빛을 절반 넘게 놓쳤으면 안내(한 눈 가리기, 30 cm, 가운데만 보기)를 다시 보여 주고 1단계를 한 번 더 합니다. 그래도 못 찾으면 틀린 자리에 확인 빛을 띄워 억울한 경고음이 나지 않도록 2·3단계의 맹점 확인 빛을 빼고 진행합니다.</p>
+      <p><b>2·3단계 맹점 확인.</b> 찾은 맹점에 빛을 섞어 띄웁니다(2단계는 세 번째 빛마다, 3단계는 약 여덟 번째 빛마다). 누르면 바로 삐비빅 경고음을 울리고 시선 이탈(FL)로 셉니다. 다른 빛에 늦게 누른 것과 섞이지 않도록 이 빛 앞뒤로 ${CONFIG.cleanGapMs / 1000}초씩 비웁니다.</p>
+      <figure>${bsSvg(eyeOf())}<figcaption>${eyeName(eyeOf())} 기준. 점선 타원은 평균 맹점, 점은 1단계에서 넓게 훑는 빛, 마름모는 2·3단계 맹점 확인 빛입니다. 확인 빛은 1단계에서 찾은 맹점으로 옮겨집니다. 잘 보이는 확인 자리는 그림 밖에 있습니다.</figcaption></figure>
+      <p><b>연습용 경고음.</b> 실제 장비는 적외선 카메라로도 시선을 계속 봅니다. 이 연습은 소리를 익히도록 3단계에서 ${CONFIG.demoAlarmEveryMs / 1000}초마다 한 번 연습용 경고음을 따로 울립니다. 결과의 시선 그래프에서 실제 감지(빨강)와 연습용(회색)을 나눠 보여 줍니다. 경고음이 울리면 ${CONFIG.alarmPauseMs / 1000}초 동안 빛을 멈춥니다.</p>
+      <figure>${alarmSvg()}<figcaption>경고음 모양. 맑은 사인파 기계음을 크게 냅니다. 스피커 볼륨을 미리 확인하세요.</figcaption></figure>
+      <div class="actions"><button class="ghost" type="button" data-beep>미리 듣기</button></div>
+      <dl class="kv">
+        <div><dt>맹점 찾기</dt><dd>넓게 ${BSMAP.coarseX.length}곳 → 좁혀 5곳 · 못 찾으면 1번 더</dd></div>
+        <div><dt>맹점 확인</dt><dd>2단계 3번째 · 3단계 약 8번째 빛마다</dd></div>
+        <div><dt>시선 이탈 기준</dt><dd>20% 초과면 신뢰도 낮음</dd></div>
+        <div><dt>연습용 경고음</dt><dd>${CONFIG.demoAlarmEveryMs / 1000}초마다 1번</dd></div>
+      </dl>
+      <p class="aside">맹점 확인 빛을 띄운 순간에만 확인합니다. 그 사이의 움직임이나, 맹점 크기(약 3°)보다 작은 움직임은 감지하지 못합니다.</p>
+      ${srcLine('BSMAP, CONFIG.flCatch, cleanGapMs, summarizeBs()', 2, '§3 불규칙 움직임 감지')}`,
+  },
+  {
+    id: 'fixp', k: '시선 고정 연습', v: () => `${DUR.fix}초`, d: '보이면 누름 · 눈은 가운데',
+    body: () => `
+      <h3>2단계 시선 고정 연습</h3>
+      <p>실제 검사와 같은 규칙으로 연습합니다. 눈은 가운데 노란 점에 두고, 주변에 빛이 보이면 마우스만 누릅니다. 노란 점은 꺼지지 않습니다.</p>
+      <p><b>주변 빛.</b> 실제 장비처럼 같은 크기(Goldmann III) 빛이 사방에서 ${CONFIG.stimMs / 1000}초씩 반짝이기만 합니다. 빛이 나온 쪽으로 눈이 끌려도 가운데를 지키는 연습입니다. 중간에 한 번, 강한 빛이 나온 자리에 색과 밝기가 불규칙한 잔상이 몇 개 겹쳐 남았다가 4~7초에 걸쳐 서서히 사라집니다. 잔상에는 누르지 않습니다.</p>
+      <p><b>눈 움직임 확인.</b> 세 번째 빛마다 1단계에서 찾은 맹점에 빛을 띄웁니다. 가운데를 보고 있으면 보이지 않는 빛이므로, 누르면 눈이 움직였다는 뜻이고 바로 경고음이 울립니다. 1단계에서 맹점을 못 찾았으면 이 빛은 띄우지 않습니다.</p>
+      <figure>${fixSvg(eyeOf())}<figcaption>${eyeName(eyeOf())} 기준 화면 구성. 주변 빛은 사방에서 무작위로 나옵니다.</figcaption></figure>
+      <dl class="kv">
+        <div><dt>연습 시간</dt><dd>${DUR.fix}초 · ${STAGES.fix.min}~${STAGES.fix.max}초</dd></div>
+        <div><dt>빛 간격</dt><dd>${CONFIG.isiMs[0] / 1000}초</dd></div>
+        <div><dt>맹점 확인 빛</dt><dd>${FIXP.probeEvery}번째 빛마다</dd></div>
+        <div><dt>클릭 인정</dt><dd>${CONFIG.responseMs[0] / 1000}~${CONFIG.responseMs[1] / 1000}초</dd></div>
+      </dl>
+      <p class="aside">점수 = (누르지 않은 맹점 확인 빛 + 누르지 않은 잔상) ÷ (맹점 확인 빛 + 잔상 + 빛 없을 때 누름) × 100입니다.</p>
+      ${srcLine('FIXP, tickFix(), summarizeFix()', 1, '§1 중심점 · p.2 §3 불규칙 움직임 감지')}`,
+  },
+];
+// 상자는 평소 모두 닫혀 있고, 제목을 누르면 펼쳐진다
+function renderCats() {
+  $('cats').innerHTML = CATS.map(c => `<details class="cat" data-cat="${c.id}">
+    <summary><span class="k">${c.k}</span><span class="v">${c.v()}</span><span class="d">${c.d}</span></summary>
+    <div class="detail"></div></details>`).join('');
+}
+function renderDetail() { // 펼친 상자만 그림. 모니터 크기·눈·시간 설정이 바뀌면 다시 그림
+  const f = fitInfo();
+  for (const el of document.querySelectorAll('.cat[open]')) {
+    const c = CATS.find(x => x.id === el.dataset.cat);
+    el.querySelector('.detail').innerHTML = c.body(f);
+    c.after?.(f);
+  }
+}
+function renderSetup() {
+  const f = fitInfo(), eye = eyeOf();
+  $('fit').textContent = `${fmt(f.wCm)} × ${fmt(f.hCm)} cm 화면, ${D} cm에서 좌우 ±${Math.floor(f.degX)}° · 상하 ±${Math.floor(f.degY)}°. ` +
+    (f.ok ? '24-2 점 54개가 모두 들어갑니다.' : '24-2 범위가 다 들어가지 않아 바깥 점은 빠집니다.');
+  $('fit').classList.toggle('bad', !f.ok);
+  $('ruler').style.width = 10 * f.ppc + 'px';
+  $('cover-eye').textContent = eye === 'OD' ? '왼눈' : '오른눈';
+  renderDetail();
+}
+
+$('cats').addEventListener('toggle', e => { if (e.target.open) renderDetail(); }, true);
+document.addEventListener('click', e => { if (e.target.closest('[data-beep]')) playAlarm(); });
+$('beep').addEventListener('click', playAlarm);
+$('inch').addEventListener('input', () => { store.set('hfa-inch', $('inch').value); renderSetup(); });
+document.querySelectorAll('input[name="eye"]').forEach(r => r.addEventListener('change', () => { store.set('hfa-eye', eyeOf()); renderSetup(); }));
+$('start').addEventListener('click', () => startFlow(eyeOf()));
+
+// ── 진행: 1단계 맹점 찾기 → 2단계 시선 고정 연습 → 3단계 시야검사 연습 ──
+const cv = $('field'), ctx = cv.getContext('2d');
+const FIX_FONT = '"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+let flow = null, run = null;
+const coverWord = () => (flow.eye === 'OD' ? '왼눈' : '오른눈');
+
+async function startFlow(eye) {
+  audio(); // 클릭 순간에 소리 잠금 해제
+  document.querySelector(`input[name="eye"][value="${eye}"]`).checked = true;
+  flow = { eye, inch: currentInch(), dur: { ...DUR }, bs: null, res: {}, fs: false };
+  $('app').hidden = true;
+  cv.hidden = false;
+  startStage('bs');
+  requestAnimationFrame(tick);
+  try { await document.documentElement.requestFullscreen?.(); } catch {}
+  if (flow) flow.fs = !!document.fullscreenElement;
+}
+
+// 각 단계는 안내 화면(intro) → 마우스 누름 → 짧은 준비(lead) → 연습(test) 순서
+function startStage(mode) {
+  run = {
+    mode, eye: flow.eye, inch: flow.inch, phase: 'intro', t0: performance.now(), testMs: flow.dur[mode] * 1000,
+    cur: null, trials: [], falsePos: 0, alarmLog: [], msgUntil: 0, msgKind: null,
+    ai: [], aiSpans: [], aiClicks: 0, aiAt: null, aiLeft: 0, aiLast: null, nextOnset: 0,
+  };
+  layout();
+}
+
+function endStage() {
+  flow.res[run.mode] = SUMMARY[run.mode]();
+  if (run.mode === 'bs' && !flow.bs.found && !flow.bsRetry) { // 맹점을 못 찾으면 안내를 바꿔 한 번 더
+    flow.bsRetry = true;
+    startStage('bs');
+    return;
+  }
+  const next = ORDER[ORDER.indexOf(run.mode) + 1];
+  if (next) startStage(next);
+  else finishFlow(false);
+}
+
+function finishFlow(aborted) {
+  if (!flow) return;
+  const f = flow;
+  flow = null;
+  run = null;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  cv.hidden = true;
+  $('app').hidden = false;
+  const avg = historyAverages(); // 이번 사람을 넣기 전의 평균과 비교
+  addHistory(f);
+  showResults(f, avg, aborted);
+  renderSetup();
+  renderHistoryCount();
+  $('result').hidden = false;
+  $('result').scrollIntoView({ block: 'start' });
+}
+
+function layout() {
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(innerWidth * dpr);
+  cv.height = Math.round(innerHeight * dpr);
+  const n = stimPx(run.inch, dpr);
+  run.L = { W: cv.width, H: cv.height, cx: Math.round(cv.width / 2), cy: Math.round(cv.height / 2), ppc: screenCal(run.inch).ppc * dpr, n, mask: stimMask(n) };
+}
+addEventListener('resize', () => run && layout());
+
+function toScreen(p) {
+  const [x, y] = fieldToCm(p), L = run.L;
+  return [L.cx + x * L.ppc, L.cy - y * L.ppc];
+}
+function fits(p, margin = run.L.n) {
+  const [x, y] = toScreen(p), { W, H } = run.L;
+  return x - margin >= 0 && x + margin <= W && y - margin >= 0 && y + margin <= H;
+}
+const degPx = d => D * Math.tan(rad(d)) * run.L.ppc;
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+
+function tick(now) {
+  if (!flow) return;
+  if (run.phase === 'lead' && now - run.t0 >= CONFIG.leadInMs) {
+    run.phase = 'test';
+    run.t0 = now;
+    INIT[run.mode](now);
+  }
+  if (run.phase === 'test') {
+    const t = now - run.t0;
+    for (const tr of run.trials.slice(-4)) if (!tr.resolved && now - tr.onset > CONFIG.responseMs[1]) resolve(tr, false);
+    run.ai = run.ai.filter(a => now - a.onset < a.dur);
+    if (run.aiAt != null && t >= run.aiAt) { run.aiAt = null; startAfterimages(now); }
+    if (t >= run.testMs) {
+      endStage();
+      if (!flow) return;
+    } else TICK[run.mode](now, t);
+    if (run.aiLeft && run.cur !== run.aiLast) { // 잔상이 이어지는 동안 새로 나온 강한 빛마다 그 자리에 잔상
+      run.aiLast = run.cur;
+      if (aiStrength(run.cur) >= CONFIG.afterimage.minStrength) { addAfterimage(run.cur, run.cur.onset + CONFIG.stimMs); run.aiLeft--; }
+    }
+  }
+  draw(now);
+  requestAnimationFrame(tick);
+}
+
+// ── 그리기 ──
+function drawStim(p, gray) {
+  const { n, mask } = run.L, [x, y] = toScreen(p), ox = Math.round(x - n / 2), oy = Math.round(y - n / 2);
+  ctx.fillStyle = rgb(gray);
+  for (const [ry, x0, w] of mask) ctx.fillRect(ox + x0, oy + ry, w, 1);
+}
+function drawDisc(p, rDeg, gray) {
+  const [x, y] = toScreen(p);
+  ctx.beginPath(); ctx.arc(x, y, degPx(rDeg), 0, 2 * Math.PI);
+  ctx.fillStyle = rgb(gray); ctx.fill();
+}
+function drawText(lines, dyDeg, title = false) {
+  const { cx, cy, ppc } = run.L;
+  ctx.fillStyle = '#2b2b2b';
+  ctx.textAlign = 'center';
+  let y = cy + degPx(dyDeg);
+  lines.forEach((s, i) => {
+    const big = title && i === 0;
+    ctx.font = `${big ? 700 : 400} ${Math.round(ppc * (big ? 0.75 : 0.55))}px ${FIX_FONT}`;
+    ctx.fillText(s, cx, y);
+    y += ppc * (big ? 1.15 : 0.85);
+  });
+}
+
+// 안내 화면: 흰 판 위에 한 글자씩 타자 치듯 나타남
+function introMs() { return INTRO[run.mode]().join('').length / CONFIG.introCps * 1000; }
+function drawIntro(now) {
+  const lines = INTRO[run.mode](), { cx, cy, ppc } = run.L;
+  let left = Math.floor((now - run.t0) / 1000 * CONFIG.introCps);
+  const lh = i => ppc * (i === 0 ? 1.25 : 0.95), top = cy - degPx(15), h = lines.reduce((s, _, i) => s + lh(i), 0);
+  const w = Math.min(run.L.W - 2 * ppc, ppc * 30);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath(); ctx.roundRect(cx - w / 2, top - ppc * 1.1, w, h + ppc * 1.2, ppc * 0.4); ctx.fill();
+  ctx.fillStyle = '#1b1b1b';
+  ctx.textAlign = 'center';
+  let y = top;
+  lines.forEach((s, i) => {
+    ctx.font = `${i === 0 ? 700 : 500} ${Math.round(ppc * (i === 0 ? 0.8 : 0.62))}px ${FIX_FONT}`;
+    if (left > 0) ctx.fillText(s.slice(0, left), cx, y);
+    left -= s.length;
+    y += lh(i);
+  });
+}
+
+const INTRO = {
+  bs: () => flow.bsRetry
+    ? ['맹점을 찾지 못해 1단계를 한 번 더 합니다', `${coverWord()}을 꼭 가렸는지 확인하세요. 두 눈으로 보면 맹점이 없습니다`,
+      '눈과 화면 가운데 사이를 30 cm로 맞추세요 (A4 용지 긴 쪽 길이)', '가운데 노란 점만 보고, 빛 쪽으로 눈을 돌리지 마세요', '이해했으면 마우스를 눌러 시작하세요']
+    : [`1단계 · 맹점 찾기 (${flow.dur.bs}초)`, `${coverWord()}을 가리고 가운데 노란 점만 보세요`, '주변에서 빛이 반짝 보이면 바로 마우스를 누르세요',
+      '안 보이는 빛도 있습니다. 누구나 있는 맹점 때문이니 괜찮습니다', '이해했으면 마우스를 눌러 시작하세요'],
+  fix: () => [`2단계 · 시선 고정 연습 (${flow.dur.fix}초)`, '가운데 노란 점에서 눈을 떼지 마세요', '주변에서 빛이 반짝 보이면 눈은 그대로 두고 마우스만 누르세요',
+    '빛이 나온 쪽을 쳐다보지 마세요. 잔상이 남아도 누르지 마세요', '이해했으면 마우스를 눌러 시작하세요'],
+  hfa: () => [`3단계 · 시야검사 연습 (${flow.dur.hfa}초)`, '주변에서 빛이 반짝 보이면 바로 누르세요', '잔상이 남아 보여도 새로 반짝이는 빛에만 누르세요',
+    '삐비빅 소리가 나면 다시 가운데 노란 점을 보세요', '이해했으면 마우스를 눌러 시작하세요'],
+};
+
+function draw(now) {
+  const { W, H, cx, cy } = run.L;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = rgb(BG_GRAY);
+  ctx.fillRect(0, 0, W, H);
+  if (run.phase === 'test') {
+    if (run.ai.length) drawAfterimages(now);
+    const c = run.cur;
+    if (c && now - c.onset < CONFIG.stimMs) drawStim(c, c.gray);
+  }
+  // 가운데 점: 검은 구멍 속 노란 점
+  ctx.beginPath(); ctx.arc(cx, cy, degPx(CONFIG.holeDiamDeg / 2), 0, 2 * Math.PI);
+  ctx.fillStyle = '#0a0b0b'; ctx.fill();
+  ctx.lineWidth = Math.max(1, run.L.ppc * 0.03); ctx.strokeStyle = '#4c4f50'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, degPx(CONFIG.fixDiamDeg / 2), 0, 2 * Math.PI);
+  ctx.fillStyle = '#f2c400'; ctx.fill();
+  if (run.phase === 'intro') drawIntro(now);
+  else if (run.phase === 'lead') drawText([`${Math.max(1, Math.ceil((CONFIG.leadInMs - (now - run.t0)) / 1000))}초 뒤 시작합니다`, '가운데 노란 점을 보세요'], 4.5);
+  else if (now < run.msgUntil) drawText(run.msgKind === 'real'
+    ? ['삐비빅 · 눈이 움직인 것 같습니다', '다시 가운데 노란 점을 보세요']
+    : ['삐비빅 · 연습용 경고음입니다', '이 소리가 나면 다시 가운데 노란 점을 보세요'], 4.5);
+}
+
+// ── 누름 ──
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (!flow || !run) return;
+  const now = performance.now();
+  if (run.phase === 'intro') { // 안내가 다 나오기 전에 누르면 끝까지 보여 주고, 다 나온 뒤 누르면 시작
+    if (now - run.t0 < introMs()) run.t0 = now - introMs();
+    else { run.phase = 'lead'; run.t0 = now; }
+    return;
+  }
+  if (run.phase !== 'test') return;
+  pressLight(now);
+});
+cv.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && flow?.fs) finishFlow(true); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && flow) finishFlow(true); });
+
+// 잔상이 떠 있는 동안 누르면 그 잔상 회차에 표시
+function markAfterimageClick(now) {
+  const span = run.aiSpans.find(s => now >= s.a && now <= s.b + 300);
+  if (span) { span.clicked = true; run.aiClicks++; }
+}
+// 1·3단계: 빛이 켜진 뒤 0.15~1.2초 안의 누름은 가장 최근 빛에 인정, 그 밖은 헛누름
+function pressLight(now) {
+  const [lo, hi] = CONFIG.responseMs;
+  const hit = run.trials.slice(-4).reverse().find(tr => !tr.resolved && now - tr.onset >= lo && now - tr.onset <= hi);
+  if (hit) {
+    hit.rt = now - hit.onset;
+    resolve(hit, true);
+    if (hit.type === 'fl') raiseAlarm(now, 'real'); // 맹점 빛이 보였다 = 눈이 움직였다
+    return;
+  }
+  run.falsePos++;
+  markAfterimageClick(now);
+}
+function resolve(tr, seen) {
+  tr.resolved = true;
+  tr.seen = seen;
+  if (tr.stair) {
+    tr.stair.pending = false;
+    stepStair(tr.stair, seen);
+    if (tr.stair.done && run.pool.length) run.stairs.push(newStair(run.pool.shift()));
+  }
+}
+function raiseAlarm(now, kind) {
+  playAlarm();
+  run.alarmLog.push({ t: now - run.t0, kind });
+  run.msgUntil = now + CONFIG.alarmPauseMs;
+  run.msgKind = kind;
+  run.nextOnset = Math.max(run.nextOnset, now + CONFIG.alarmPauseMs + rand([300, 700]));
+}
+
+// ── 가상 잔상 ──
+// 강한 빛이 반짝인 바로 그 자리에 남는다. 처음 잠깐은 밝은 점(양성 잔상)이고, 곧 배경보다 어둡고 색이 도는 점(음성 잔상)으로
+// 바뀌어 색감(청록→파랑→보라)과 밝기가 얼룩마다 불규칙하게 오르내리며 번지다가 서서히 사라진다. 밝은 빛일수록 진하고 오래 간다.
+const aiStrength = tr => (!tr || tr.type === 'fl' ? 0 : tr.db == null ? 1 : Math.max(0, Math.min(1, 1 - (tr.db - DB_MIN) / 12)));
+function makeAfterimage(tr, onset, from = onset) {
+  const s = aiStrength(tr), [d0, d1] = CONFIG.afterimage.durMs;
+  const blobs = [{ dx: 0, dy: 0, r: 1, ph: rand([0, 6.3]) }]; // 가운데 얼룩 + 옆으로 비어져 나온 얼룩 1~2개
+  for (let i = randInt([1, 2]); i > 0; i--) {
+    const a = rand([0, 2 * Math.PI]), d = rand([0.3, 0.6]);
+    blobs.push({ dx: d * Math.cos(a), dy: d * Math.sin(a), r: rand([0.45, 0.75]), ph: rand([0, 6.3]) });
+  }
+  return { p: { x: tr.x, y: tr.y }, onset, from, s, dur: (d0 + (d1 - d0) * s) * rand([0.9, 1]), hue: rand([-15, 25]), f: rand([0.35, 0.8]), blobs };
+}
+function addAfterimage(tr, onset, from) {
+  const a = makeAfterimage(tr, onset, from), span = run.aiSpans.at(-1);
+  run.ai.push(a);
+  span.b = Math.max(span.b, a.onset + a.dur);
+}
+// 잔상 구간 시작: 방금 반짝였던 강한 빛의 잔상이 이미 어두운 단계로 하나씩 떠오르고, 이어서 나오는 강한 빛에도 잔상이 생긴다
+function startAfterimages(now) {
+  const { carryOver, nextLights, minStrength } = CONFIG.afterimage;
+  run.aiSpans.push({ a: now, b: now, clicked: false });
+  run.trials.filter(tr => now - tr.onset < 2500 && aiStrength(tr) >= minStrength).slice(-carryOver)
+    .forEach((tr, i) => addAfterimage(tr, tr.onset + CONFIG.stimMs, now + i * rand([150, 400])));
+  run.aiLeft = nextLights;
+  run.aiLast = run.cur;
+}
+// 잔상 한 얼룩의 층: [색(투명도→색 문자열), 투명도]. el = 잔상이 생긴 뒤 지난 ms
+function aiLayers(a, el, b) {
+  const { posMs } = CONFIG.afterimage, k = el / a.dur, fresh = a.from === a.onset;
+  const vis = fresh ? 1 : Math.min(1, (el - (a.from - a.onset)) / 400);
+  const w = 2 * Math.PI * a.f * el / 1000 + b.ph, flick = 0.55 + 0.45 * (0.6 * Math.sin(w) + 0.4 * Math.sin(2.3 * w + 1.7));
+  const h = Math.round(180 + a.hue + 110 * k);
+  const out = [[al => `hsla(${h},42%,47%,${al.toFixed(3)})`,
+    (fresh ? Math.min(1, el / posMs) : 1) * vis * Math.pow(1 - k, 1.2) * flick * (0.4 + 0.3 * a.s) * b.r]];
+  if (fresh && b === a.blobs[0] && el < posMs) out.push([al => `rgba(255,250,232,${al.toFixed(3)})`, 0.85 * a.s * (1 - el / posMs)]);
+  return out;
+}
+function paintAfterimage(c, a, el, x, y, R) {
+  R *= 1 + 0.4 * el / a.dur; // 시간이 갈수록 번져 커짐
+  for (const b of a.blobs) for (const [col, al] of aiLayers(a, el, b)) {
+    if (al < 0.005) continue;
+    const bx = x + b.dx * R, by = y + b.dy * R, r = 1.5 * b.r * R, g = c.createRadialGradient(bx, by, 0, bx, by, r);
+    g.addColorStop(0, col(al)); g.addColorStop(0.45, col(al * 0.7)); g.addColorStop(1, col(0));
+    c.fillStyle = g;
+    c.fillRect(bx - r, by - r, 2 * r, 2 * r);
+  }
+}
+function drawAfterimages(now) {
+  for (const a of run.ai) {
+    const el = now - a.onset;
+    if (now < a.from || el > a.dur) continue;
+    const [x, y] = toScreen(a.p);
+    paintAfterimage(ctx, a, el, x, y, degPx(CONFIG.afterimage.diamDeg / 2));
+  }
+}
+
+// ── 1단계 맹점 찾기 ──
+// ① 넓게 훑기: 귀쪽 8°~30.5°를 2.5° 간격으로. 확인 자리 빛을 섞는다.
+// ② 좁히기: 안 보인 구간 가운데의 위아래·양옆을 더 띄운다. 시간이 남으면 되풀이해 정확도를 높인다.
+function initBs(now) {
+  run.queue = shuffle([...bsCoarse(run.eye).filter(p => fits(p)).map(p => ({ ...p, kind: 'grid' })),
+    ...bsControls(run.eye).slice(0, 2).map(p => ({ ...p, kind: 'ctrl' }))]);
+  run.nextOnset = now + 600;
+}
+// 넓게 훑은 줄에서 절반 넘게 안 보인 자리가 가장 길게 이어진 구간의 가운데(귀쪽 각도). 없으면 null
+function bsCoarseCenter() {
+  const t = side(run.eye), blind = BSMAP.coarseX.map(x => {
+    const tr = run.trials.filter(r => r.kind === 'grid' && r.resolved && r.y === BSMAP.y && r.x === x * t);
+    return tr.length > 0 && tr.filter(r => !r.seen).length / tr.length >= 0.5;
+  });
+  let best = [], cur = [];
+  blind.forEach((b, i) => { if (b) { cur.push(BSMAP.coarseX[i]); if (cur.length > best.length) best = cur.slice(); } else cur = []; });
+  return best.length ? mean(best) : null;
+}
+function planBsNext() {
+  const t = side(run.eye), c = bsCoarseCenter(), ctrl = bsControls(run.eye)[2];
+  if (c == null) return shuffle([...bsCoarse(run.eye).filter(p => fits(p)).map(p => ({ ...p, kind: 'grid' })), { ...ctrl, kind: 'ctrl' }]); // 다시 훑기
+  const s = c / BSMAP.avgDeg, cy = BSMAP.y * s; // 거리가 다르면 맹점 위치·크기도 같은 비율로 달라짐
+  return shuffle([[0, 0], [0, 3 * s], [0, -3 * s], [-2 * s, 0], [2 * s, 0]]
+    .map(([dx, dy]) => ({ x: (c + dx) * t, y: cy + dy, kind: 'grid' })).filter(p => fits(p)).concat({ ...ctrl, kind: 'ctrl' }));
+}
+function tickBs(now, t) {
+  if (now < run.nextOnset || t >= run.testMs - CONFIG.responseMs[1]) return;
+  if (!run.queue.length) {
+    if (run.trials.some(r => !r.resolved)) { run.nextOnset = now + 100; return; } // 앞 빛의 응답을 기다림
+    run.queue = planBsNext();
+  }
+  const tr = { ...run.queue.shift(), type: 'bs', gray: 255, onset: now, t, rt: null, resolved: false };
+  run.trials.push(tr);
+  run.cur = tr;
+  run.nextOnset = now + BSMAP.isiMs;
+}
+// 맹점 = 안 보인 구간 둘레 자리들을 안 보인 비율로 가중한 가운데. 확인 빛을 절반 넘게 놓쳤거나 범위를 벗어나면 못 찾은 것으로 본다.
+// 맹점이 화면에서 보이는 각도로 실제 눈–화면 거리도 어림한다(평균 맹점 15.5° 기준).
+function summarizeBs() {
+  const t = side(run.eye), c = bsCoarseCenter();
+  const ctrl = run.trials.filter(r => r.kind === 'ctrl' && r.resolved), ctrlSeen = ctrl.filter(r => r.seen).length;
+  const found = c != null && (!ctrl.length || ctrlSeen / ctrl.length >= 0.5) && c >= BSMAP.plausible[0] && c <= BSMAP.plausible[1];
+  let x = CONFIG.flCatch.x * t, y = CONFIG.flCatch.y;
+  if (found) {
+    const s = c / BSMAP.avgDeg, by = new Map();
+    for (const r of run.trials.filter(r => r.kind === 'grid' && r.resolved && Math.abs(r.x * t - c) <= 4 * s)) {
+      const k = r.x + ',' + r.y, g = by.get(k) || { x: r.x, y: r.y, n: 0, seen: 0 };
+      g.n++;
+      if (r.seen) g.seen++;
+      by.set(k, g);
+    }
+    let w = 0, wx = 0, wy = 0;
+    for (const g of by.values()) { const k = 1 - g.seen / g.n; w += k; wx += k * g.x; wy += k * g.y; }
+    x = w ? wx / w : c * t;
+    y = w ? wy / w : BSMAP.y * s;
+  }
+  const distCm = found ? D * Math.tan(rad(Math.abs(x))) / Math.tan(rad(BSMAP.avgDeg)) : null;
+  flow.bs = { x, y, found, distCm };
+  const seen = run.trials.filter(r => r.rt != null);
+  return { found, x, y, distCm, ctrl: ctrl.length, ctrlSeen, falsePos: run.falsePos, retried: !!flow.bsRetry, rt: seen.length ? mean(seen.map(r => r.rt)) / 1000 : null };
+}
+
+// ── 2단계 시선 고정 연습 ──
+// 실제 검사와 같은 규칙: 눈은 가운데 노란 점(꺼지지 않음)에 두고, 빛이 반짝 보이면 누른다.
+// 빛은 실제 장비처럼 같은 크기로 반짝이기만 한다. 세 번째 빛마다 1단계에서 찾은 맹점에 확인 빛을 섞는다(못 찾았으면 섞지 않음).
+// 맹점 확인 빛을 누르면 눈이 움직였다는 실제 증거 → 바로 경고음.
+function initFix(now) {
+  Object.assign(run, { nextOnset: now + rand([500, 900]), aiAt: rand(CONFIG.afterimage.atFrac) * run.testMs, alarmAt: [], alarmIdx: 0 });
+}
+function flashPos() {
+  const bs = flow.bs;
+  for (let i = 0; i < 30; i++) {
+    const e = rand(FIXP.eccDeg), a = Math.random() * 2 * Math.PI, p = { x: e * Math.cos(a), y: e * Math.sin(a) };
+    if (fits(p) && Math.hypot(p.x - bs.x, p.y - bs.y) > 7) return p;
+  }
+  return null;
+}
+function tickFix(now, t) {
+  if (now < run.nextOnset || t >= run.testMs - CONFIG.responseMs[1]) return;
+  const k = run.trials.length, prev = run.trials.at(-1), probe = flow.bs.found && k >= 2 && k % FIXP.probeEvery === 2;
+  if (probe && prev && now - prev.onset < CONFIG.cleanGapMs) { run.nextOnset = prev.onset + CONFIG.cleanGapMs; return; }
+  const p = probe ? flow.bs : flashPos();
+  if (!p) { run.nextOnset = now + 100; return; }
+  const tr = { type: probe ? 'fl' : 'flash', x: p.x, y: p.y, gray: 255, onset: now, t, rt: null, resolved: false };
+  run.trials.push(tr);
+  run.cur = tr;
+  run.nextOnset = now + (probe ? CONFIG.cleanGapMs : rand(CONFIG.isiMs));
+}
+// 점수 = (누르지 않은 맹점 확인 빛 + 누르지 않은 잔상) ÷ (맹점 확인 빛 + 잔상 + 빛 없을 때 누름) × 100
+function summarizeFix() {
+  const done = run.trials.filter(t => t.resolved), probes = done.filter(t => t.type === 'fl'), flashes = done.filter(t => t.type === 'flash');
+  const probeSeen = probes.filter(t => t.seen).length, aiShown = run.aiSpans.length, aiWrong = run.aiSpans.filter(s => s.clicked).length;
+  const otherFp = run.falsePos - run.aiClicks, denom = probes.length + aiShown + otherFp;
+  return {
+    probes: probes.length, probeSeen, flashes: flashes.length, flashesSeen: flashes.filter(t => t.seen).length,
+    falsePos: run.falsePos, aiClicks: run.aiClicks, aiShown,
+    score: denom ? Math.round(100 * (probes.length - probeSeen + aiShown - aiWrong) / denom) : null,
+  };
+}
+
+// ── 3단계 시야검사 연습 ──
+const newStair = p => ({ x: p.x, y: p.y, db: START_DB, step: CONFIG.stepsDb[0], rev: 0, last: null, seenDb: null, n: 0, done: false, pending: false });
+// 처음 잴 점: 1차 점 4개(±9°, ±9°) + 사분면마다 무작위 1개. 나머지는 하나가 끝날 때마다 무작위로 더함. 맹점 근처는 뺀다.
+function pickPoints() {
+  const all = grid242(run.eye).filter(p => fits(p) && !nearBlindSpot(p, flow.bs));
+  const rest = shuffle(all.filter(p => !isPrimary(p)));
+  const extra = [[1, 1], [-1, 1], [1, -1], [-1, -1]]
+    .map(([sx, sy]) => rest.find(p => Math.sign(p.x) === sx && Math.sign(p.y) === sy)).filter(Boolean);
+  const first = [...all.filter(isPrimary), ...extra].slice(0, CONFIG.activePoints);
+  return { stairs: first.map(newStair), pool: rest.filter(p => !first.includes(p)) };
+}
+function initHfa(now) {
+  const nAlarm = Math.max(1, Math.round(run.testMs / CONFIG.demoAlarmEveryMs));
+  Object.assign(run, {
+    ...pickPoints(), nextOnset: now + rand([500, 900]),
+    flSlots: CONFIG.flCatch.slots.slice(), fnSlots: CONFIG.fnCatch.slots.slice(),
+    alarmAt: Array.from({ length: nAlarm }, (_, i) => rand([0.55 + i * 0.2, 0.65 + i * 0.2]) * run.testMs), alarmIdx: 0,
+    aiAt: rand(CONFIG.afterimage.atFrac) * run.testMs,
+  });
+}
+// 맹점 확인(fl) 빛은 앞뒤로 빈 시간을 둔다.
+const cleanKind = k => (flow.bs.found && run.flSlots.length && k >= run.flSlots[0] ? 'fl' : null);
+// 다음 자극: 맹점 확인(FL), 밝은 빛 놓침 확인(FN), 아니면 끝나지 않은 점 하나를 무작위로.
+function nextTrial(kind) {
+  const k = run.trials.length;
+  if (kind === 'fl') { run.flSlots.shift(); return { type: 'fl', x: flow.bs.x, y: flow.bs.y, db: DB_MIN }; }
+  if (run.fnSlots.includes(k)) {
+    const s = shuffle(run.stairs.filter(s => s.seenDb != null && !s.pending))[0];
+    if (s) return { type: 'fn', x: s.x, y: s.y, db: Math.max(DB_MIN, s.seenDb - CONFIG.fnCatch.brighterDb) };
+  }
+  const prev = run.trials.at(-1);
+  let open = run.stairs.filter(s => !s.done && !s.pending);
+  if (open.length > 1 && prev) open = open.filter(s => s.x !== prev.x || s.y !== prev.y);
+  const s = open[Math.floor(Math.random() * open.length)];
+  return s ? { type: 'thr', stair: s, x: s.x, y: s.y, db: s.db } : null;
+}
+function tickHfa(now, t) {
+  if (run.alarmIdx < run.alarmAt.length && t >= run.alarmAt[run.alarmIdx]) {
+    run.alarmIdx++;
+    // 방금 실제 감지 경고음이 울렸으면 연습용은 건너뜀
+    if (!run.alarmLog.some(a => a.kind === 'real' && t - a.t < 8000)) raiseAlarm(now, 'demo');
+  }
+  if (now < run.nextOnset || t >= run.testMs - CONFIG.responseMs[1]) return;
+  const k = run.trials.length, prev = run.trials.at(-1), kind = cleanKind(k);
+  if (kind && prev && now - prev.onset < CONFIG.cleanGapMs) { run.nextOnset = prev.onset + CONFIG.cleanGapMs; return; }
+  const tr = nextTrial(kind);
+  if (!tr) { run.nextOnset = now + 100; return; } // 응답을 기다리는 점만 남음
+  Object.assign(tr, { gray: stimGray(tr.db), onset: now, t, rt: null, resolved: false });
+  if (tr.stair) tr.stair.pending = true;
+  run.trials.push(tr);
+  run.cur = tr;
+  run.nextOnset = now + (kind ? CONFIG.cleanGapMs : rand(CONFIG.isiMs));
+}
+// 점수 = 확인용 자극(맹점 빛, 밝은 빛, 잔상)에 맞게 반응한 수 ÷ (확인용 자극 + 그 밖의 헛누름) × 100
+function summarizeHfa() {
+  const done = run.trials.filter(t => t.resolved), fl = done.filter(t => t.type === 'fl'), fn = done.filter(t => t.type === 'fn');
+  const flSeen = fl.filter(t => t.seen).length, fnMiss = fn.filter(t => !t.seen).length;
+  const aiShown = run.aiSpans.length, aiWrong = run.aiSpans.filter(s => s.clicked).length;
+  const catches = fl.length + fn.length + aiShown, correct = fl.length - flSeen + fn.length - fnMiss + aiShown - aiWrong;
+  const otherFp = run.falsePos - run.aiClicks, denom = catches + otherFp;
+  return {
+    trials: run.trials.length, trialTimes: run.trials.map(t => t.t), testMs: run.testMs, stairs: run.stairs, alarmLog: run.alarmLog,
+    flN: fl.length, flSeen, fnN: fn.length, fnMiss, falsePos: run.falsePos, aiClicks: run.aiClicks, aiShown,
+    score: denom ? Math.round(100 * correct / denom) : null,
+  };
+}
+
+const INIT = { bs: initBs, fix: initFix, hfa: initHfa };
+const TICK = { bs: tickBs, fix: tickFix, hfa: tickHfa };
+const SUMMARY = { bs: summarizeBs, fix: summarizeFix, hfa: summarizeHfa };
+
+// ── 기록과 평균 (이 컴퓨터 브라우저에 점수만 저장) ──
+const HIST_KEY = 'hfa-history';
+const METRICS = {
+  bs: { title: '1단계 · 맹점 찾기', label: '평균 반응 시간', key: 'bsRt', lowerBetter: true, range: [0.2, 1.2], tol: 0.05, show: v => fmt(v, 2) + '초', ends: ['느림', '빠름'] },
+  fix: { title: '2단계 · 시선 고정 연습', label: '시선 고정 점수', key: 'fixScore', range: [0, 100], tol: 5, show: v => Math.round(v) + '점', ends: ['0', '100'] },
+  hfa: { title: '3단계 · 시야검사 연습', label: '응답 정확도', key: 'hfaScore', range: [0, 100], tol: 5, show: v => Math.round(v) + '점', ends: ['0', '100'] },
+};
+const metricOf = (mode, r) => (r ? (mode === 'bs' ? r.rt : r.score) : null);
+function loadHistory() {
+  try { const h = JSON.parse(store.get(HIST_KEY) || '[]'); return Array.isArray(h) ? h : []; } catch { return []; }
+}
+function addHistory(f) {
+  const rec = { t: Date.now(), eye: f.eye };
+  for (const mode of ORDER) rec[METRICS[mode].key] = metricOf(mode, f.res[mode]);
+  if (ORDER.every(mode => rec[METRICS[mode].key] == null)) return;
+  store.set(HIST_KEY, JSON.stringify([...loadHistory(), rec].slice(-1000)));
+}
+function historyAverages() {
+  const h = loadHistory(), out = {};
+  for (const mode of ORDER) {
+    const vals = h.map(r => r[METRICS[mode].key]).filter(v => typeof v === 'number');
+    out[mode] = vals.length ? { avg: mean(vals), n: vals.length } : null;
+  }
+  return out;
+}
+
+// 막대 하나: 오른쪽일수록 잘함. 검은 막대 = 나, 노란 눈금 = 평균
+function gaugeSvg(m, v, avg) {
+  const [lo, hi] = m.range, frac = x => Math.min(1, Math.max(0, m.lowerBetter ? (hi - x) / (hi - lo) : (x - lo) / (hi - lo)));
+  const X = x => 20 + 260 * frac(x);
+  let s = `<svg class="dg gauge" viewBox="0 0 300 78" role="img" aria-label="${m.label}: 나 ${v == null ? '없음' : m.show(v)}${avg != null ? `, 평균 ${m.show(avg)}` : ''}">`;
+  s += '<rect class="track" x="20" y="30" width="260" height="12" rx="6"/>';
+  if (v != null) s += `<rect class="me" x="20" y="30" width="${Math.max(12, X(v) - 20)}" height="12" rx="6"/><text x="${X(v)}" y="62" text-anchor="middle">나</text>`;
+  if (avg != null) s += `<line class="avg" x1="${X(avg)}" y1="22" x2="${X(avg)}" y2="50" stroke-width="3"/><text x="${X(avg)}" y="16" text-anchor="middle">평균</text>`;
+  s += `<text x="20" y="76">${m.ends[0]}</text><text x="280" y="76" text-anchor="end">${m.ends[1]}</text>`;
+  return s + '</svg>';
+}
+function verdict(m, v, a) {
+  if (v == null) return ['mid', '결과 없음'];
+  if (!a) return ['mid', '첫 기록'];
+  const d = m.lowerBetter ? a.avg - v : v - a.avg;
+  if (d >= m.tol) return ['good', m.lowerBetter ? '평균보다 빠름' : '평균보다 잘함'];
+  if (d <= -m.tol) return ['warn', m.lowerBetter ? '평균보다 느림' : '조금 더 연습해요'];
+  return ['mid', '평균 수준'];
+}
+function scoreCard(mode, r, a) {
+  const m = METRICS[mode], v = metricOf(mode, r), [cls, word] = verdict(m, v, a);
+  const note = !r ? '이 단계는 하지 않았습니다.'
+    : mode === 'bs' ? (r.found ? `맹점: 귀쪽 ${fmt(Math.abs(r.x))}°, ${r.y < 0 ? '아래' : '위'} ${fmt(Math.abs(r.y))}° · 맹점 위치로 본 눈–화면 거리 약 ${Math.round(r.distCm)} cm${Math.abs(r.distCm - D) > 6 ? ` (${D} cm로 맞추세요)` : ''}` : `맹점을 ${r.retried ? '두 번 모두 ' : ''}찾지 못해 2·3단계의 맹점 확인 빛은 띄우지 않았습니다. 한 눈을 가렸는지, ${D} cm인지 확인하세요 · 확인 빛 ${r.ctrlSeen}/${r.ctrl}`)
+    : mode === 'fix' ? `${r.probes ? `맹점 빛 누름(눈 움직임) ${r.probeSeen}/${r.probes} · ` : ''}잔상 때 누름 ${r.aiClicks} · 빛 없을 때 누름 ${r.falsePos - r.aiClicks} · 주변 빛 ${r.flashesSeen}/${r.flashes} 봄`
+    : `${r.flN ? `시선 이탈 ${r.flSeen}/${r.flN} · ` : ''}잔상 때 누름 ${r.aiClicks} · 헛누름 ${r.falsePos - r.aiClicks} · 밝은 빛 놓침 ${r.fnMiss}/${r.fnN}`;
+  return `<article class="score">
+    <p class="eyebrow">${m.title}</p>
+    <p class="big">${v == null ? '–' : m.show(v)}</p>
+    <p class="sub">${m.label}${m.lowerBetter ? ' · 짧을수록 좋음' : ' · 100점 만점'}</p>
+    ${gaugeSvg(m, v, a?.avg)}
+    <p><span class="chip ${cls}">${word}</span> <span class="sub">${a ? `${a.n}명 평균 ${m.show(a.avg)}` : '다음 사람부터 평균과 비교합니다'}</span></p>
+    <p class="note">${note}</p>
+  </article>`;
+}
+
+const stat = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
+const RESET_BTN = '<button class="reset" type="button" data-reset>다음 사람 시작 <small>결과를 지우고 처음 화면으로</small></button>';
+
+function hfaDetails(f, r) {
+  const notes = [];
+  notes.push('지도의 숫자는 그 자리에서 본 가장 어두운 빛(보이는 한계, dB)입니다. 클수록 더 어두운 빛까지 본 것입니다. 모니터로 한 연습이라 실제 장비 값과는 다릅니다.');
+  if (r.flN) notes.push(r.flSeen
+    ? `맹점에 띄운 빛 ${r.flN}번 중 ${r.flSeen}번 눌렀고, 그때마다 경고음이 울렸습니다. 가운데를 보고 있으면 맹점의 빛은 보이지 않으므로 그 순간 눈이 움직였을 가능성이 큽니다.`
+    : `맹점에 띄운 빛 ${r.flN}번을 한 번도 누르지 않았습니다. 가운데를 잘 보고 있었다는 뜻입니다.`);
+  if (r.fnMiss) notes.push(`이미 본 자리에 더 밝게 띄운 빛을 ${r.fnMiss}번 놓쳤습니다(밝은 빛 놓침). 피곤하거나 집중이 흐트러지면 생깁니다.`);
+  if (r.aiShown) notes.push(r.aiClicks ? `잔상이 떠 있을 때 ${r.aiClicks}번 눌렀습니다. 잔상은 서서히 흐려지는 점이고, 새 빛은 짧게 반짝입니다.` : '잔상이 남아 있는 동안 잔상에는 누르지 않았습니다.');
+  if (r.falsePos - r.aiClicks > 0) notes.push(`빛이 없을 때 ${r.falsePos - r.aiClicks}번 눌렀습니다(헛누름). 빛이 보였을 때만 누르세요.`);
+  const realN = r.alarmLog.filter(a => a.kind === 'real').length;
+  return `<h3 class="sm">3단계 시야검사 연습 자세히</h3>
+    <div class="res-body">
+      <figure>${mapSvg(f.eye, { stairs: r.stairs, flSeen: r.flSeen, bs: f.bs })}
+        <figcaption>숫자는 보이는 한계(dB), –는 시간 안에 못 끝낸 점입니다. 점선 타원은 ${f.bs?.found ? '1단계에서 찾은' : '평균'} 맹점, 마름모는 맹점 확인 자리이며 빨간색이면 그 빛을 눌렀다는 뜻입니다.</figcaption></figure>
+      <figure class="gz">${gazeSvg(r)}
+        <figcaption>시선 그래프. 빨간 막대는 맹점 빛을 눌러 실제로 감지한 시선 이탈(${realN}번), 회색 막대는 연습용 경고음(${r.alarmLog.length - realN}번)입니다.</figcaption></figure>
+    </div>
+    <ul class="notes">${notes.map(s => `<li>${s}</li>`).join('')}</ul>`;
+}
+
+function showResults(f, avg, aborted) {
+  const done = ORDER.filter(m => f.res[m]), other = f.eye === 'OD' ? 'OS' : 'OD';
+  const fx = f.res.fix;
+  $('result').innerHTML = `
+    ${RESET_BTN}
+    <div><p class="eyebrow">연습 결과 · ${eyeName(f.eye)}</p>
+      <h2>${aborted ? `중간에 멈췄습니다 (${done.length}/3단계)` : '3단계 연습을 마쳤습니다'}</h2>
+      <p class="sub">이 컴퓨터에서 연습한 사람들의 평균과 비교합니다. 기록에는 점수만 남습니다.</p></div>
+    <div class="compare">${ORDER.map(m => scoreCard(m, f.res[m], avg[m])).join('')}</div>
+    ${done.length ? `<details class="more"><summary>자세히 보기</summary>
+      ${fx ? `<h3 class="sm">2단계 시선 고정 연습 자세히</h3><dl class="stats">
+        ${stat('맹점 빛 누름 (눈 움직임)', fx.probes ? `${fx.probeSeen}/${fx.probes}` : '–')}${stat('주변 빛 봄', `${fx.flashesSeen}/${fx.flashes}`)}
+        ${stat('잔상 때 누름', fx.aiClicks + '회')}${stat('빛 없을 때 누름', fx.falsePos - fx.aiClicks + '회')}</dl>
+        <p class="sub">맹점에 띄운 빛은 가운데를 보고 있으면 보이지 않습니다. 이 빛을 눌렀다면 그 순간 눈이 움직였을 가능성이 큽니다.</p>` : ''}
+      ${f.res.hfa ? hfaDetails(f, f.res.hfa) : ''}
+    </details>` : ''}
+    <div class="actions">${startBtn(other, `${eyeName(other)}으로 연습하기`, true)}${startBtn(f.eye, `${eyeName(f.eye)} 다시 하기`)}</div>`;
+}
+const startBtn = (eye, label, primary) =>
+  `<button class="${primary ? 'start' : 'ghost'}" type="button" data-again="${eye}">${primary ? '<span class="mark sm" aria-hidden="true"></span>' : ''}${label}</button>`;
+
+$('result').addEventListener('click', e => {
+  if (e.target.closest('[data-reset]')) return resetForNext();
+  const b = e.target.closest('[data-again]');
+  if (b) startFlow(b.dataset.again);
+});
+// 다음 사람: 앞사람 결과를 지우고 처음 화면으로. 모니터 크기·연습 시간은 기기 설정이라 그대로 둔다.
+function resetForNext() {
+  $('result').hidden = true;
+  $('result').innerHTML = '';
+  $('eye-od').checked = true;
+  store.set('hfa-eye', 'OD');
+  renderCats();
+  renderSetup();
+  scrollTo({ top: 0 });
+}
+
+// ── 연습 시간 설정과 기록 ──
+function renderDurations() {
+  $('durs').innerHTML = ORDER.map((k, i) => `<div class="dur">
+    <label for="dur-${k}">${i + 1}단계 ${STAGES[k].name}<small>${STAGES[k].min}~${STAGES[k].max}초</small></label>
+    <input type="range" id="dur-${k}" data-k="${k}" min="${STAGES[k].min}" max="${STAGES[k].max}" step="5" value="${DUR[k]}">
+    <output id="dur-${k}-v" for="dur-${k}">${DUR[k]}초</output></div>`).join('');
+  renderDurationLabels();
+}
+function renderDurationLabels() {
+  for (const k of ORDER) { $(`d-${k}`).textContent = `${DUR[k]}초`; $(`dur-${k}-v`).textContent = `${DUR[k]}초`; }
+  $('start').lastChild.textContent = `연습 시작 · 3단계 ${ORDER.reduce((s, k) => s + DUR[k], 0)}초`;
+}
+$('durs').addEventListener('input', e => {
+  const k = e.target.dataset.k;
+  if (!k) return;
+  DUR[k] = +e.target.value;
+  store.set(DUR_KEY, JSON.stringify(DUR));
+  renderDurationLabels();
+  renderDetail();
+});
+function renderHistoryCount() {
+  const n = loadHistory().length;
+  $('hist-n').textContent = n ? `이 컴퓨터에 쌓인 기록 ${n}명` : '아직 쌓인 기록이 없습니다';
+  $('hist-clear').hidden = !n;
+}
+let clearArmed = null;
+$('hist-clear').addEventListener('click', () => {
+  if (!clearArmed) { // 한 번 더 눌러야 지움
+    $('hist-clear').textContent = '한 번 더 누르면 지웁니다';
+    clearArmed = setTimeout(() => { clearArmed = null; $('hist-clear').textContent = '기록 지우기'; }, 4000);
+    return;
+  }
+  clearTimeout(clearArmed);
+  clearArmed = null;
+  store.set(HIST_KEY, '[]');
+  $('hist-clear').textContent = '기록 지우기';
+  renderHistoryCount();
+});
+
+// ── 시작 ─────────────────────────────────────────────────
+(function init() {
+  const inch = store.get('hfa-inch'), eye = store.get('hfa-eye');
+  if (inch) $('inch').value = inch;
+  if (eye === 'OS') $('eye-os').checked = true;
+  $('touch-warn').hidden = !matchMedia('(pointer: coarse)').matches;
+  renderDurations();
+  renderHistoryCount();
+  renderCats();
+  renderSetup();
+})();
+</script>
+</body>
+</html>
